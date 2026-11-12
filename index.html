@@ -123,6 +123,7 @@ select {
 </head>
 
 <body>
+
 <main>
 
   <h1>IMPRESORA</h1>
@@ -157,13 +158,17 @@ select {
 "use strict";
 
 /* ==========================================
-   CONFIGURACIÓN
+   CONFIGURACIÓN BLUEFY
 ========================================== */
 
 const URL_PUENTE =
   "https://script.google.com/macros/s/AKfycbxllxZq70BoS5cZb5tlAYZ1N59VZayJ6pBfvrYXlGKIEiSdHIWWE8ue4LpomS3d6OOl8Q/exec";
 
 const TOKEN_PUENTE = "2004";
+
+/* ==========================================
+   CONFIGURACIÓN IMPRESORA MP210
+========================================== */
 
 const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -181,14 +186,21 @@ const dormir = ms =>
 
 let dispositivo = null;
 let tx = null;
+
 let imprimiendo = false;
 let conectando = false;
 let cancelado = false;
 let consultando = false;
+
 let pendientes = [];
 let historial = [];
 
+/* ==========================================
+   RECUPERAR HISTORIAL
+========================================== */
+
 try {
+
   const previo = JSON.parse(
     localStorage.getItem("bluefy_historial") || "[]"
   );
@@ -196,10 +208,11 @@ try {
   if (Array.isArray(previo)) {
     historial = previo.slice(0, 35);
   }
+
 } catch (_) {}
 
 /* ==========================================
-   HISTORIAL
+   REGISTRAR HISTORIAL
 ========================================== */
 
 function registrar(mensaje) {
@@ -219,14 +232,20 @@ function registrar(mensaje) {
   historial = historial.slice(0, 35);
 
   try {
+
     localStorage.setItem(
       "bluefy_historial",
       JSON.stringify(historial)
     );
+
   } catch (_) {}
 
   dibujarHistorial();
 }
+
+/* ==========================================
+   MOSTRAR HISTORIAL
+========================================== */
 
 function dibujarHistorial() {
 
@@ -235,6 +254,7 @@ function dibujarHistorial() {
   contenedor.replaceChildren();
 
   if (!historial.length) {
+
     contenedor.textContent = "Sin movimientos.";
     return;
   }
@@ -264,10 +284,16 @@ function conectado() {
   );
 }
 
+/* ==========================================
+   ESTADO DE BOTONES
+========================================== */
+
 function botones() {
 
   $("conectar").disabled =
-    conectado() || imprimiendo || conectando;
+    conectado() ||
+    imprimiendo ||
+    conectando;
 
   $("imprimir").disabled =
     !conectado() ||
@@ -280,7 +306,7 @@ function botones() {
 }
 
 /* ==========================================
-   FORMATO DEL TICKET
+   FORMATO DE TEXTO
 ========================================== */
 
 function normal(s) {
@@ -330,6 +356,7 @@ function wrap(s, w = COLS) {
       }
 
       lines.push(word.slice(0, w));
+
       word = word.slice(w);
     }
 
@@ -341,19 +368,30 @@ function wrap(s, w = COLS) {
 
     if (next.length > w) {
 
-      if (line) lines.push(line);
+      if (line) {
+        lines.push(line);
+      }
 
       line = word;
 
     } else {
+
       line = next;
     }
   }
 
-  if (line) lines.push(line);
+  if (line) {
+    lines.push(line);
+  }
 
-  return lines.length ? lines : [""];
+  return lines.length
+    ? lines
+    : [""];
 }
+
+/* ==========================================
+   CREACIÓN DEL TICKET ESC/POS
+========================================== */
 
 function crearTicket(d) {
 
@@ -374,19 +412,28 @@ function crearTicket(d) {
   };
 
   const regla = (n = 1) => {
+
     for (let i = 0; i < n; i++) {
       ln("=".repeat(COLS));
     }
   };
 
   const align = n => cmd(27, 97, n);
-  const bold = on => cmd(27, 69, on ? 1 : 0);
-  const size = n => cmd(29, 33, n);
+
+  const bold = on =>
+    cmd(27, 69, on ? 1 : 0);
+
+  const size = n =>
+    cmd(29, 33, n);
 
   const lines = (v, w = COLS) =>
     wrap(v, w).forEach(ln);
 
+  /* INICIAR IMPRESORA */
+
   cmd(27, 64);
+
+  /* ENCABEZADO */
 
   align(1);
   bold(true);
@@ -406,14 +453,22 @@ function crearTicket(d) {
 
   const ciudad = [
     d.lugar_emisor,
-    d.cp_emisor ? "C.P. " + d.cp_emisor : ""
+    d.cp_emisor
+      ? "C.P. " + d.cp_emisor
+      : ""
   ].filter(Boolean).join(" ");
 
-  if (ciudad) lines(ciudad);
+  if (ciudad) {
+    lines(ciudad);
+  }
 
   nl();
+
   align(0);
+
   regla();
+
+  /* DATOS DEL CLIENTE */
 
   if (d.tipo === "remision") {
 
@@ -424,6 +479,7 @@ function crearTicket(d) {
     lines(d.cliente);
 
     if (d.domicilio_entrega) {
+
       ln("DOMICILIO DE ENTREGA");
       lines(d.domicilio_entrega);
     }
@@ -476,6 +532,8 @@ function crearTicket(d) {
     }
   }
 
+  /* PRODUCTOS */
+
   regla();
 
   bold(true);
@@ -499,7 +557,9 @@ function crearTicket(d) {
       disponible
     );
 
-    ln(pair(nombreLineas[0], precio));
+    ln(
+      pair(nombreLineas[0], precio)
+    );
 
     nombreLineas.slice(1).forEach(ln);
 
@@ -509,6 +569,7 @@ function crearTicket(d) {
       d.tipo === "remision" &&
       p.precio_unitario
     ) {
+
       lines(
         "Precio unitario: " +
         p.precio_unitario
@@ -518,10 +579,23 @@ function crearTicket(d) {
     ln("-".repeat(COLS));
   }
 
+  /* TOTALES */
+
   regla();
 
-  ln(pair("Productos", d.total_productos));
-  ln(pair("Subtotal", d.subtotal));
+  ln(
+    pair(
+      "Productos",
+      d.total_productos
+    )
+  );
+
+  ln(
+    pair(
+      "Subtotal",
+      d.subtotal
+    )
+  );
 
   if (d.envio) {
     ln(pair("Envio", d.envio));
@@ -541,6 +615,8 @@ function crearTicket(d) {
   bold(false);
 
   regla();
+
+  /* REMISIÓN O TICKET */
 
   if (d.tipo === "remision") {
 
@@ -567,6 +643,7 @@ function crearTicket(d) {
     bold(false);
 
     if (d.observaciones_remision) {
+
       lines(
         "Observaciones: " +
         d.observaciones_remision
@@ -589,7 +666,9 @@ function crearTicket(d) {
     align(1);
 
     bold(true);
+
     ln("GRACIAS POR TU COMPRA");
+
     bold(false);
 
     lines(
@@ -612,23 +691,38 @@ function crearTicket(d) {
 
 async function enviar(bytes) {
 
-  for (let i = 0; i < bytes.length; i += 20) {
+  for (
+    let i = 0;
+    i < bytes.length;
+    i += 20
+  ) {
 
     if (cancelado) {
+
       throw Error(
-        "Impresion detenida. El ticket puede haber salido incompleto."
+        "Impresion detenida. " +
+        "El ticket puede haber salido incompleto."
       );
     }
 
     if (!conectado()) {
-      throw Error("Impresora desconectada.");
+
+      throw Error(
+        "Impresora desconectada."
+      );
     }
 
-    const parte = bytes.slice(i, i + 20);
+    const parte = bytes.slice(
+      i,
+      i + 20
+    );
 
     if (tx.properties.write) {
+
       await tx.writeValueWithResponse(parte);
+
     } else {
+
       await tx.writeValueWithoutResponse(parte);
     }
 
@@ -637,7 +731,7 @@ async function enviar(bytes) {
 }
 
 /* ==========================================
-   PUENTE APPS SCRIPT
+   CONEXIÓN CON GOOGLE APPS SCRIPT
 ========================================== */
 
 function llamarPuente(accion, params = {}) {
@@ -657,13 +751,17 @@ function llamarPuente(accion, params = {}) {
       "bluefy_cb_" +
       Math.random().toString(36).slice(2);
 
-    const script = document.createElement("script");
+    const script =
+      document.createElement("script");
 
     let terminado = false;
 
     const limpiar = () => {
+
       clearTimeout(timer);
+
       delete window[cb];
+
       script.remove();
     };
 
@@ -672,6 +770,7 @@ function llamarPuente(accion, params = {}) {
       if (terminado) return;
 
       terminado = true;
+
       limpiar();
 
       reject(
@@ -685,15 +784,20 @@ function llamarPuente(accion, params = {}) {
       if (terminado) return;
 
       terminado = true;
+
       limpiar();
 
       if (!r || !r.ok) {
 
         reject(
-          Error(r?.error || "Error del puente.")
+          Error(
+            r?.error ||
+            "Error del puente."
+          )
         );
 
       } else {
+
         resolve(r);
       }
     };
@@ -703,10 +807,13 @@ function llamarPuente(accion, params = {}) {
       if (terminado) return;
 
       terminado = true;
+
       limpiar();
 
       reject(
-        Error("No se pudo contactar al puente.")
+        Error(
+          "No se pudo contactar al puente."
+        )
       );
     };
 
@@ -725,14 +832,22 @@ function llamarPuente(accion, params = {}) {
 }
 
 /* ==========================================
-   LISTA DE TICKETS
+   CONSULTAR TICKETS PENDIENTES
+
+   REGISTRA CADA CONSULTA EN HISTORIAL
 ========================================== */
 
 async function cargarTickets() {
 
-  if (consultando || imprimiendo) return;
+  if (consultando || imprimiendo) {
+    return;
+  }
 
   consultando = true;
+
+  registrar(
+    "Consultando cola de tickets..."
+  );
 
   try {
 
@@ -744,11 +859,13 @@ async function cargarTickets() {
       : [];
 
     const anterior = $("tickets").value;
+
     const selector = $("tickets");
 
     selector.replaceChildren();
 
-    const vacio = document.createElement("option");
+    const vacio =
+      document.createElement("option");
 
     vacio.value = "";
 
@@ -760,7 +877,8 @@ async function cargarTickets() {
 
     for (const job of pendientes) {
 
-      const opt = document.createElement("option");
+      const opt =
+        document.createElement("option");
 
       opt.value = job.id;
 
@@ -773,20 +891,32 @@ async function cargarTickets() {
       selector.appendChild(opt);
     }
 
-    if (pendientes.some(j => j.id === anterior)) {
+    if (
+      pendientes.some(
+        j => j.id === anterior
+      )
+    ) {
+
       selector.value = anterior;
     }
+
+    registrar(
+      "Cola consultada correctamente. " +
+      pendientes.length +
+      " ticket(s) pendientes."
+    );
 
   } catch (err) {
 
     registrar(
-      "No se pudo consultar la cola: " +
+      "Error al consultar cola: " +
       err.message
     );
 
   } finally {
 
     consultando = false;
+
     botones();
   }
 }
@@ -798,6 +928,7 @@ async function cargarTickets() {
 async function conectar() {
 
   if (!navigator.bluetooth) {
+
     throw Error(
       "Usa Chrome compatible o Bluefy en iPhone."
     );
@@ -818,25 +949,31 @@ async function conectar() {
     () => {
 
       tx = null;
+
       cancelado = true;
 
-      registrar("Impresora desconectada.");
+      registrar(
+        "Impresora desconectada."
+      );
 
       botones();
     }
   );
 
-  const server = await dispositivo.gatt.connect();
+  const server =
+    await dispositivo.gatt.connect();
 
   const servicio =
     await server.getPrimaryService(SERVICIO);
 
-  tx = await servicio.getCharacteristic(CARACT);
+  tx =
+    await servicio.getCharacteristic(CARACT);
 
   if (
     !tx.properties.write &&
     !tx.properties.writeWithoutResponse
   ) {
+
     throw Error(
       "La impresora no admite escritura."
     );
@@ -844,14 +981,24 @@ async function conectar() {
 
   cancelado = false;
 
-  registrar("Impresora conectada.");
+  registrar(
+    "Impresora conectada."
+  );
 
   botones();
 }
 
+/* ==========================================
+   BOTÓN CONECTAR IMPRESORA
+
+   AL CONECTAR CONSULTA LA COLA
+========================================== */
+
 $("conectar").onclick = async () => {
 
-  if (conectando || conectado()) return;
+  if (conectando || conectado()) {
+    return;
+  }
 
   conectando = true;
 
@@ -860,6 +1007,10 @@ $("conectar").onclick = async () => {
   try {
 
     await conectar();
+
+    // Consultar tickets al conectar
+
+    await cargarTickets();
 
   } catch (err) {
 
@@ -877,20 +1028,29 @@ $("conectar").onclick = async () => {
 };
 
 /* ==========================================
-   SELECCIONAR E IMPRIMIR
+   SELECCIÓN DE TICKET
 ========================================== */
 
 $("tickets").onchange = botones;
 
+/* ==========================================
+   BOTÓN IMPRIMIR
+
+   SOLO IMPRIME EL TICKET SELECCIONADO
+========================================== */
+
 $("imprimir").onclick = async () => {
 
-  if (imprimiendo || !conectado()) return;
+  if (imprimiendo || !conectado()) {
+    return;
+  }
 
   const id = $("tickets").value;
 
   if (!id) return;
 
   imprimiendo = true;
+
   cancelado = false;
 
   botones();
@@ -899,25 +1059,41 @@ $("imprimir").onclick = async () => {
 
   try {
 
+    registrar(
+      "Solicitando ticket seleccionado..."
+    );
+
     const r = await llamarPuente(
       "tomar",
       {id}
     );
 
     if (!r.trabajo) {
-      throw Error("Ticket no disponible.");
+
+      throw Error(
+        "Ticket no disponible."
+      );
     }
 
     tomado = true;
 
     registrar(
       "Imprimiendo ticket de " +
-      (r.trabajo.datos.cliente || "cliente") +
+      (
+        r.trabajo.datos.cliente ||
+        "cliente"
+      ) +
       "."
     );
 
-    await enviar(
-      crearTicket(r.trabajo.datos)
+    const bytes =
+      crearTicket(r.trabajo.datos);
+
+    await enviar(bytes);
+
+    registrar(
+      "Datos enviados a la impresora. " +
+      "Confirmando ticket..."
     );
 
     await llamarPuente(
@@ -926,7 +1102,7 @@ $("imprimir").onclick = async () => {
     );
 
     registrar(
-      "Ticket impreso y confirmado."
+      "Ticket enviado y confirmado correctamente."
     );
 
   } catch (err) {
@@ -944,7 +1120,9 @@ $("imprimir").onclick = async () => {
           "error",
           {
             id,
-            mensaje: String(err.message || err)
+            mensaje: String(
+              err.message || err
+            )
           }
         );
 
@@ -968,14 +1146,17 @@ $("imprimir").onclick = async () => {
 };
 
 /* ==========================================
-   DETENER
+   BOTÓN DETENER
 ========================================== */
 
 $("detener").onclick = () => {
 
   cancelado = true;
 
-  if (dispositivo?.gatt?.connected) {
+  if (
+    dispositivo?.gatt?.connected
+  ) {
+
     dispositivo.gatt.disconnect();
   }
 
@@ -985,8 +1166,11 @@ $("detener").onclick = () => {
 };
 
 /* ==========================================
-   ACTUALIZAR LISTA CADA 60 SEGUNDOS
-   SIN IMPRIMIR AUTOMÁTICAMENTE
+   CONSULTA AUTOMÁTICA CADA 60 SEGUNDOS
+
+   REGISTRA LA CONSULTA EN HISTORIAL
+
+   NO IMPRIME AUTOMÁTICAMENTE
 ========================================== */
 
 setInterval(
@@ -994,10 +1178,19 @@ setInterval(
   INTERVALO_MS
 );
 
+/* ==========================================
+   INICIAR APLICACIÓN
+========================================== */
+
 dibujarHistorial();
+
 botones();
+
+// Primera consulta al abrir GitHub
+
 cargarTickets();
 
 </script>
+
 </body>
 </html>
