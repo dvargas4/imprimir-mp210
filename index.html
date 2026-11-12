@@ -4,14 +4,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Bluefy | MP210</title>
+<title>Impresora MP210</title>
 
 <style>
 :root {
-  --bg: #f7f8f6;
-  --fg: #202824;
-  --green: #246a50;
-  --line: #d7dfd9;
+  --naranja: #f47721;
+  --naranja-oscuro: #dc5f0f;
+  --naranja-claro: #fff4eb;
+  --blanco: #ffffff;
+  --texto: #302920;
+  --borde: #f2dfd0;
 }
 
 * {
@@ -19,127 +21,149 @@
 }
 
 body {
-  font: 16px/1.5 -apple-system, system-ui, sans-serif;
-  margin: 0 auto;
-  padding: 24px 16px;
-  max-width: 540px;
-  background: var(--bg);
-  color: var(--fg);
+  margin: 0;
+  background: var(--blanco);
+  color: var(--texto);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
 }
 
-.card {
-  padding: 18px;
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  margin: 14px 0;
+main {
+  width: min(100% - 32px, 520px);
+  margin: 42px auto;
+  padding: 28px;
+  border: 1px solid var(--borde);
+  border-radius: 18px;
+  background: var(--blanco);
 }
 
 h1 {
-  font-size: 25px;
+  color: var(--naranja);
+  text-align: center;
+  font-size: 26px;
+  margin: 0 0 28px;
+  letter-spacing: .06em;
 }
 
-p {
-  color: #57665e;
+h2 {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: .05em;
+  margin: 26px 0 12px;
 }
 
 button {
-  display: block;
   width: 100%;
-  padding: 15px;
-  margin: 10px 0;
-  border: 0;
-  border-radius: 9px;
-  background: var(--green);
-  color: white;
-  font-size: 16px;
-  font-weight: 600;
+  padding: 15px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--naranja);
+  background: var(--naranja);
+  color: var(--blanco);
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  margin-top: 12px;
 }
 
 button:disabled {
-  opacity: .4;
+  opacity: .48;
+  cursor: not-allowed;
 }
 
-button.sec {
-  background: white;
-  color: var(--green);
-  border: 1px solid var(--green);
+button:not(:disabled):active {
+  background: var(--naranja-oscuro);
 }
 
-#estado {
+button.secundario {
+  background: var(--blanco);
+  color: var(--naranja);
+}
+
+select {
+  display: block;
+  width: 100%;
+  padding: 14px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 11px;
+  background: var(--blanco);
+  color: var(--texto);
+  font: inherit;
+  min-height: 51px;
+}
+
+#historial {
+  padding: 14px;
+  border: 1px solid var(--borde);
+  border-radius: 11px;
+  background: var(--naranja-claro);
+  min-height: 80px;
+  max-height: 220px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  font-size: 13px;
   white-space: pre-wrap;
-  font: 14px/1.6 system-ui;
-  min-height: 4em;
+}
+
+#historial div + div {
+  border-top: 1px solid var(--borde);
+  margin-top: 9px;
+  padding-top: 9px;
+}
+
+@media (max-width: 560px) {
+  main {
+    width: 100%;
+    margin: 0;
+    padding: 26px 18px;
+    border: 0;
+    border-radius: 0;
+  }
 }
 </style>
 </head>
 
 <body>
+<main>
 
-<h1>Impresión MP210</h1>
-
-<p>
-  Recibe los tickets seleccionados desde
-  Fruti Verdura a Domicilio.
-</p>
-
-<div class="card">
-
-  <b>Impresora</b>
-
-  <p id="conexion">Desconectada</p>
+  <h1>IMPRESORA</h1>
 
   <button id="conectar">
-    Conectar MP210
+    CONECTAR IMPRESORA
   </button>
 
-  <button id="test" class="sec" disabled>
-    Imprimir TEST
+  <h2>TICKETS A IMPRIMIR</h2>
+
+  <select id="tickets" aria-label="Seleccionar ticket">
+    <option value="">Consultando tickets...</option>
+  </select>
+
+  <button id="imprimir" disabled>
+    IMPRIMIR
   </button>
 
-  <button id="buscar" class="sec" disabled>
-    Revisar tickets pendientes
+  <button id="detener" class="secundario" disabled>
+    DETENER
   </button>
 
-  <button id="detener" class="sec" disabled>
-    Detener y desconectar
-  </button>
+  <h2>HISTORIAL</h2>
 
-</div>
-
-<div class="card">
-
-  <b>Recepción de tickets</b>
-
-  <p>
-    Los tickets se consultan cada 60 segundos
-    mientras la impresora esté conectada.
-  </p>
-
-  <div id="estado">
-    Pulsa Conectar MP210 para comenzar.
+  <div id="historial" role="log" aria-live="polite">
+    Sin movimientos.
   </div>
 
-</div>
+</main>
 
 <script>
 "use strict";
 
-/* ============================================
-   CONFIGURACIÓN DEL PUENTE BLUEFY
-
-   URL ACTUAL DE GOOGLE APPS SCRIPT
-   PIN DE CUATRO DÍGITOS
-============================================ */
+/* ==========================================
+   CONFIGURACIÓN
+========================================== */
 
 const URL_PUENTE =
   "https://script.google.com/macros/s/AKfycbxllxZq70BoS5cZb5tlAYZ1N59VZayJ6pBfvrYXlGKIEiSdHIWWE8ue4LpomS3d6OOl8Q/exec";
 
 const TOKEN_PUENTE = "2004";
-
-/* ============================================
-   CONFIGURACIÓN BLUETOOTH MP210
-============================================ */
 
 const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -147,29 +171,91 @@ const SERVICIO =
 const CARACT =
   "49535343-8841-43f4-a8d4-ecbe34729bb3";
 
-const INTERVALO_MS = 60000;
 const COLS = 32;
+const INTERVALO_MS = 60000;
 
 const $ = id => document.getElementById(id);
 
+const dormir = ms =>
+  new Promise(resolve => setTimeout(resolve, ms));
+
 let dispositivo = null;
 let tx = null;
-let busy = false;
-let canceled = false;
+let imprimiendo = false;
+let conectando = false;
+let cancelado = false;
 let consultando = false;
+let pendientes = [];
+let historial = [];
 
-let ultimoError = "";
-let ultimoId = "";
+try {
+  const previo = JSON.parse(
+    localStorage.getItem("bluefy_historial") || "[]"
+  );
 
-/* ============================================
-   ESTADO DE LA INTERFAZ
-============================================ */
+  if (Array.isArray(previo)) {
+    historial = previo.slice(0, 35);
+  }
+} catch (_) {}
 
-function estado(mensaje) {
-  $("estado").textContent = mensaje;
+/* ==========================================
+   HISTORIAL
+========================================== */
+
+function registrar(mensaje) {
+
+  const hora = new Date().toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  historial.unshift({
+    hora,
+    mensaje: String(mensaje)
+  });
+
+  historial = historial.slice(0, 35);
+
+  try {
+    localStorage.setItem(
+      "bluefy_historial",
+      JSON.stringify(historial)
+    );
+  } catch (_) {}
+
+  dibujarHistorial();
 }
 
+function dibujarHistorial() {
+
+  const contenedor = $("historial");
+
+  contenedor.replaceChildren();
+
+  if (!historial.length) {
+    contenedor.textContent = "Sin movimientos.";
+    return;
+  }
+
+  for (const item of historial) {
+
+    const div = document.createElement("div");
+
+    div.textContent =
+      item.hora + " · " + item.mensaje;
+
+    contenedor.appendChild(div);
+  }
+}
+
+/* ==========================================
+   ESTADO DE CONEXIÓN
+========================================== */
+
 function conectado() {
+
   return !!(
     dispositivo &&
     dispositivo.gatt &&
@@ -179,116 +265,23 @@ function conectado() {
 }
 
 function botones() {
-  const c = conectado();
 
-  $("conectar").disabled = c || busy;
-  $("test").disabled = !c || busy;
-  $("buscar").disabled = !c || busy || consultando;
-  $("detener").disabled = !c;
+  $("conectar").disabled =
+    conectado() || imprimiendo || conectando;
 
-  $("conexion").textContent =
-    c ? "Conectada" : "Desconectada";
+  $("imprimir").disabled =
+    !conectado() ||
+    imprimiendo ||
+    !$("tickets").value;
+
+  $("detener").disabled = !conectado();
+
+  $("tickets").disabled = imprimiendo;
 }
 
-const dormir = ms =>
-  new Promise(resolve => setTimeout(resolve, ms));
-
-/* ============================================
-   CONEXIÓN BLUETOOTH
-============================================ */
-
-async function conectar() {
-
-  if (!navigator.bluetooth) {
-    throw Error(
-      "Abre esta página HTTPS desde Bluefy o Chrome compatible."
-    );
-  }
-
-  dispositivo = await navigator.bluetooth.requestDevice({
-    filters: [
-      {
-        namePrefix: "MP210"
-      }
-    ],
-    optionalServices: [SERVICIO]
-  });
-
-  dispositivo.addEventListener(
-    "gattserverdisconnected",
-    () => {
-      tx = null;
-      canceled = true;
-
-      estado(
-        "Impresora desconectada. " +
-        "Vuelve a conectarla para recibir tickets."
-      );
-
-      botones();
-    }
-  );
-
-  const server = await dispositivo.gatt.connect();
-
-  const service =
-    await server.getPrimaryService(SERVICIO);
-
-  tx = await service.getCharacteristic(CARACT);
-
-  if (
-    !tx.properties.write &&
-    !tx.properties.writeWithoutResponse
-  ) {
-    throw Error(
-      "La característica Bluetooth no admite escritura."
-    );
-  }
-
-  canceled = false;
-
-  botones();
-
-  estado(
-    "Bluetooth conectado. Revisando tickets pendientes..."
-  );
-
-  await revisar();
-}
-
-/* ============================================
-   ENVÍO DE BYTES A LA IMPRESORA
-============================================ */
-
-async function enviar(bytes) {
-
-  for (let i = 0; i < bytes.length; i += 20) {
-
-    if (canceled) {
-      throw Error(
-        "Envío cancelado. El ticket podría estar incompleto."
-      );
-    }
-
-    if (!conectado()) {
-      throw Error("Bluetooth desconectado.");
-    }
-
-    const part = bytes.slice(i, i + 20);
-
-    if (tx.properties.write) {
-      await tx.writeValueWithResponse(part);
-    } else {
-      await tx.writeValueWithoutResponse(part);
-    }
-
-    await dormir(100);
-  }
-}
-
-/* ============================================
-   FORMATO DE TEXTO
-============================================ */
+/* ==========================================
+   FORMATO DEL TICKET
+========================================== */
 
 function normal(s) {
 
@@ -300,17 +293,6 @@ function normal(s) {
     .replace(/[\u2013\u2014]/g, "-")
     .replace(/[\u2018\u2019]/g, "'")
     .replace(/[^\x20-\x7e]/g, " ");
-}
-
-function centro(s, w = COLS) {
-
-  s = normal(s);
-
-  return s.length >= w
-    ? s
-    : s
-        .padStart(Math.floor((w + s.length) / 2))
-        .padEnd(w);
 }
 
 function pair(a, b, w = COLS) {
@@ -348,7 +330,6 @@ function wrap(s, w = COLS) {
       }
 
       lines.push(word.slice(0, w));
-
       word = word.slice(w);
     }
 
@@ -360,30 +341,19 @@ function wrap(s, w = COLS) {
 
     if (next.length > w) {
 
-      if (line) {
-        lines.push(line);
-      }
+      if (line) lines.push(line);
 
       line = word;
 
     } else {
-
       line = next;
     }
   }
 
-  if (line) {
-    lines.push(line);
-  }
+  if (line) lines.push(line);
 
-  return lines.length
-    ? lines
-    : [""];
+  return lines.length ? lines : [""];
 }
-
-/* ============================================
-   CREACIÓN DEL TICKET ESC/POS
-============================================ */
 
 function crearTicket(d) {
 
@@ -416,10 +386,8 @@ function crearTicket(d) {
   const lines = (v, w = COLS) =>
     wrap(v, w).forEach(ln);
 
-  // Inicializar impresora
   cmd(27, 64);
 
-  // Encabezado
   align(1);
   bold(true);
   size(17);
@@ -438,20 +406,14 @@ function crearTicket(d) {
 
   const ciudad = [
     d.lugar_emisor,
-    d.cp_emisor
-      ? "C.P. " + d.cp_emisor
-      : ""
+    d.cp_emisor ? "C.P. " + d.cp_emisor : ""
   ].filter(Boolean).join(" ");
 
-  if (ciudad) {
-    lines(ciudad);
-  }
+  if (ciudad) lines(ciudad);
 
   nl();
   align(0);
   regla();
-
-  /* DATOS DEL CLIENTE */
 
   if (d.tipo === "remision") {
 
@@ -514,8 +476,6 @@ function crearTicket(d) {
     }
   }
 
-  /* PRODUCTOS */
-
   regla();
 
   bold(true);
@@ -539,9 +499,7 @@ function crearTicket(d) {
       disponible
     );
 
-    ln(
-      pair(nombreLineas[0], precio)
-    );
+    ln(pair(nombreLineas[0], precio));
 
     nombreLineas.slice(1).forEach(ln);
 
@@ -560,23 +518,10 @@ function crearTicket(d) {
     ln("-".repeat(COLS));
   }
 
-  /* TOTALES */
-
   regla();
 
-  ln(
-    pair(
-      "Productos",
-      d.total_productos
-    )
-  );
-
-  ln(
-    pair(
-      "Subtotal",
-      d.subtotal
-    )
-  );
+  ln(pair("Productos", d.total_productos));
+  ln(pair("Subtotal", d.subtotal));
 
   if (d.envio) {
     ln(pair("Envio", d.envio));
@@ -596,8 +541,6 @@ function crearTicket(d) {
   bold(false);
 
   regla();
-
-  /* REMISIÓN O TICKET */
 
   if (d.tipo === "remision") {
 
@@ -663,31 +606,48 @@ function crearTicket(d) {
   return new Uint8Array(a);
 }
 
-/* ============================================
-   COMUNICACIÓN CON GOOGLE APPS SCRIPT
-============================================ */
+/* ==========================================
+   ENVÍO BLUETOOTH
+========================================== */
+
+async function enviar(bytes) {
+
+  for (let i = 0; i < bytes.length; i += 20) {
+
+    if (cancelado) {
+      throw Error(
+        "Impresion detenida. El ticket puede haber salido incompleto."
+      );
+    }
+
+    if (!conectado()) {
+      throw Error("Impresora desconectada.");
+    }
+
+    const parte = bytes.slice(i, i + 20);
+
+    if (tx.properties.write) {
+      await tx.writeValueWithResponse(parte);
+    } else {
+      await tx.writeValueWithoutResponse(parte);
+    }
+
+    await dormir(100);
+  }
+}
+
+/* ==========================================
+   PUENTE APPS SCRIPT
+========================================== */
 
 function llamarPuente(accion, params = {}) {
 
   return new Promise((resolve, reject) => {
 
-    if (
-      !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/.test(
-        URL_PUENTE
-      )
-    ) {
-      reject(
-        Error("URL de Apps Script inválida.")
-      );
-      return;
-    }
-
     if (!/^\d{4}$/.test(TOKEN_PUENTE)) {
 
       reject(
-        Error(
-          "El PIN debe contener exactamente 4 números."
-        )
+        Error("PIN inválido en el código.")
       );
 
       return;
@@ -697,8 +657,9 @@ function llamarPuente(accion, params = {}) {
       "bluefy_cb_" +
       Math.random().toString(36).slice(2);
 
-    let script = document.createElement("script");
-    let done = false;
+    const script = document.createElement("script");
+
+    let terminado = false;
 
     const limpiar = () => {
       clearTimeout(timer);
@@ -708,198 +669,119 @@ function llamarPuente(accion, params = {}) {
 
     const timer = setTimeout(() => {
 
-      if (!done) {
+      if (terminado) return;
 
-        done = true;
-        limpiar();
+      terminado = true;
+      limpiar();
 
-        reject(
-          Error("Tiempo de consulta agotado.")
-        );
-      }
+      reject(
+        Error("Tiempo de consulta agotado.")
+      );
 
     }, 18000);
 
-    window[cb] = respuesta => {
+    window[cb] = r => {
 
-      if (done) return;
+      if (terminado) return;
 
-      done = true;
+      terminado = true;
       limpiar();
 
-      if (!respuesta?.ok) {
+      if (!r || !r.ok) {
 
         reject(
-          Error(
-            respuesta?.error ||
-            "Falló la consulta del puente."
-          )
+          Error(r?.error || "Error del puente.")
         );
 
       } else {
-
-        resolve(respuesta);
+        resolve(r);
       }
     };
-
-    const qs = new URLSearchParams({
-      accion,
-      token: TOKEN_PUENTE,
-      callback: cb,
-      ...params
-    });
-
-    script.src =
-      URL_PUENTE + "?" + qs.toString();
 
     script.onerror = () => {
 
-      if (!done) {
+      if (terminado) return;
 
-        done = true;
-        limpiar();
+      terminado = true;
+      limpiar();
 
-        reject(
-          Error(
-            "No se pudo cargar la respuesta de Apps Script."
-          )
-        );
-      }
+      reject(
+        Error("No se pudo contactar al puente.")
+      );
     };
+
+    script.src =
+      URL_PUENTE +
+      "?" +
+      new URLSearchParams({
+        accion,
+        token: TOKEN_PUENTE,
+        callback: cb,
+        ...params
+      });
 
     document.head.appendChild(script);
   });
 }
 
-/* ============================================
-   CONSULTA DE TICKETS PENDIENTES
-============================================ */
+/* ==========================================
+   LISTA DE TICKETS
+========================================== */
 
-async function revisar() {
+async function cargarTickets() {
 
-  if (
-    !conectado() ||
-    consultando ||
-    busy
-  ) {
-    return;
-  }
+  if (consultando || imprimiendo) return;
 
   consultando = true;
-  botones();
-
-  let procesados = 0;
 
   try {
 
-    while (
-      conectado() &&
-      procesados < 10
-    ) {
+    const respuesta =
+      await llamarPuente("listar");
 
-      const r = await llamarPuente("tomar");
+    pendientes = Array.isArray(respuesta.tickets)
+      ? respuesta.tickets
+      : [];
 
-      if (!r.trabajo) {
+    const anterior = $("tickets").value;
+    const selector = $("tickets");
 
-        estado(
-          procesados
-            ? "Se enviaron " +
-              procesados +
-              " ticket(s).\nNo quedan pendientes."
-            : "Conectada.\nNo hay tickets pendientes."
-        );
+    selector.replaceChildren();
 
-        break;
-      }
+    const vacio = document.createElement("option");
 
-      const job = r.trabajo;
+    vacio.value = "";
 
-      ultimoId = job.id;
+    vacio.textContent = pendientes.length
+      ? "Selecciona un ticket"
+      : "No hay tickets pendientes";
 
-      busy = true;
-      botones();
+    selector.appendChild(vacio);
 
-      try {
+    for (const job of pendientes) {
 
-        const bytes = crearTicket(
-          job.datos
-        );
+      const opt = document.createElement("option");
 
-        estado(
-          "Imprimiendo " +
-          (job.datos.cliente || "ticket") +
-          "\n" +
-          bytes.length +
-          " bytes..."
-        );
+      opt.value = job.id;
 
-        canceled = false;
+      opt.textContent = [
+        job.cliente || "Sin cliente",
+        job.fecha || "",
+        job.total || ""
+      ].filter(Boolean).join(" · ");
 
-        await enviar(bytes);
-
-        await llamarPuente(
-          "confirmar",
-          {
-            id: job.id
-          }
-        );
-
-        procesados++;
-
-        estado(
-          "Ticket " +
-          job.id.slice(0, 8) +
-          " enviado y confirmado."
-        );
-
-        await dormir(600);
-
-      } catch (err) {
-
-        ultimoError = String(
-          err.message || err
-        );
-
-        estado(
-          "ERROR: " +
-          ultimoError +
-          "\nNo se reimprimirá automáticamente."
-        );
-
-        try {
-
-          await llamarPuente(
-            "error",
-            {
-              id: job.id,
-              mensaje: ultimoError
-            }
-          );
-
-        } catch (_) {}
-
-        break;
-
-      } finally {
-
-        busy = false;
-        botones();
-      }
+      selector.appendChild(opt);
     }
 
-    if (procesados === 10) {
-
-      estado(
-        "Se enviaron 10 tickets. " +
-        "Los demás se revisarán en el siguiente ciclo."
-      );
+    if (pendientes.some(j => j.id === anterior)) {
+      selector.value = anterior;
     }
 
   } catch (err) {
 
-    estado(
-      "No se pudo consultar la cola:\n" +
-      (err.message || err)
+    registrar(
+      "No se pudo consultar la cola: " +
+      err.message
     );
 
   } finally {
@@ -909,123 +791,213 @@ async function revisar() {
   }
 }
 
-/* ============================================
-   BOTONES
-============================================ */
+/* ==========================================
+   CONECTAR IMPRESORA
+========================================== */
+
+async function conectar() {
+
+  if (!navigator.bluetooth) {
+    throw Error(
+      "Usa Chrome compatible o Bluefy en iPhone."
+    );
+  }
+
+  dispositivo =
+    await navigator.bluetooth.requestDevice({
+      filters: [
+        {
+          namePrefix: "MP210"
+        }
+      ],
+      optionalServices: [SERVICIO]
+    });
+
+  dispositivo.addEventListener(
+    "gattserverdisconnected",
+    () => {
+
+      tx = null;
+      cancelado = true;
+
+      registrar("Impresora desconectada.");
+
+      botones();
+    }
+  );
+
+  const server = await dispositivo.gatt.connect();
+
+  const servicio =
+    await server.getPrimaryService(SERVICIO);
+
+  tx = await servicio.getCharacteristic(CARACT);
+
+  if (
+    !tx.properties.write &&
+    !tx.properties.writeWithoutResponse
+  ) {
+    throw Error(
+      "La impresora no admite escritura."
+    );
+  }
+
+  cancelado = false;
+
+  registrar("Impresora conectada.");
+
+  botones();
+}
 
 $("conectar").onclick = async () => {
 
-  if (busy) return;
+  if (conectando || conectado()) return;
 
-  busy = true;
+  conectando = true;
+
   botones();
 
   try {
 
     await conectar();
 
-  } catch (e) {
+  } catch (err) {
 
-    estado(
-      "Error: " + e.message
+    registrar(
+      "Error de conexión: " +
+      err.message
     );
 
   } finally {
 
-    busy = false;
+    conectando = false;
+
     botones();
   }
-
-  // Revisar después de finalizar la conexión
-  await revisar();
 };
 
-$("test").onclick = async () => {
+/* ==========================================
+   SELECCIONAR E IMPRIMIR
+========================================== */
 
-  if (busy) return;
+$("tickets").onchange = botones;
 
-  busy = true;
-  canceled = false;
+$("imprimir").onclick = async () => {
+
+  if (imprimiendo || !conectado()) return;
+
+  const id = $("tickets").value;
+
+  if (!id) return;
+
+  imprimiendo = true;
+  cancelado = false;
 
   botones();
 
+  let tomado = false;
+
   try {
 
+    const r = await llamarPuente(
+      "tomar",
+      {id}
+    );
+
+    if (!r.trabajo) {
+      throw Error("Ticket no disponible.");
+    }
+
+    tomado = true;
+
+    registrar(
+      "Imprimiendo ticket de " +
+      (r.trabajo.datos.cliente || "cliente") +
+      "."
+    );
+
     await enviar(
-      new Uint8Array([
-        27, 64,
-        84, 69, 83, 84,
-        10, 10, 10
-      ])
+      crearTicket(r.trabajo.datos)
     );
 
-    estado(
-      "TEST enviado correctamente."
+    await llamarPuente(
+      "confirmar",
+      {id}
     );
 
-  } catch (e) {
-
-    estado(
-      "ERROR TEST: " + e.message
+    registrar(
+      "Ticket impreso y confirmado."
     );
+
+  } catch (err) {
+
+    registrar(
+      "Error al imprimir: " +
+      err.message
+    );
+
+    if (tomado) {
+
+      try {
+
+        await llamarPuente(
+          "error",
+          {
+            id,
+            mensaje: String(err.message || err)
+          }
+        );
+
+      } catch (_) {
+
+        registrar(
+          "No se pudo confirmar el estado. " +
+          "Revisa el papel antes de reintentar."
+        );
+      }
+    }
 
   } finally {
 
-    busy = false;
+    imprimiendo = false;
+
     botones();
+
+    await cargarTickets();
   }
 };
 
-$("buscar").onclick = () => {
-  revisar();
-};
+/* ==========================================
+   DETENER
+========================================== */
 
 $("detener").onclick = () => {
 
-  canceled = true;
+  cancelado = true;
 
-  if (
-    dispositivo?.gatt?.connected
-  ) {
+  if (dispositivo?.gatt?.connected) {
     dispositivo.gatt.disconnect();
   }
 
   tx = null;
 
-  estado(
-    "Desconectada."
-  );
-
   botones();
 };
 
-/* ============================================
-   CONSULTA AUTOMÁTICA CADA 60 SEGUNDOS
+/* ==========================================
+   ACTUALIZAR LISTA CADA 60 SEGUNDOS
+   SIN IMPRIMIR AUTOMÁTICAMENTE
+========================================== */
 
-   SOLO CONSULTA TICKETS ENVIADOS
-   MANUALMENTE DESDE STREAMLIT.
-============================================ */
-
-setInterval(() => {
-
-  if (conectado()) {
-    revisar();
-  }
-
-}, INTERVALO_MS);
-
-/* ============================================
-   INICIALIZACIÓN
-============================================ */
-
-estado(
-  "Puente configurado.\n" +
-  "Conecta la MP210 para recibir tickets."
+setInterval(
+  cargarTickets,
+  INTERVALO_MS
 );
 
+dibujarHistorial();
 botones();
+cargarTickets();
 
 </script>
-
 </body>
 </html>
