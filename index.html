@@ -26,19 +26,23 @@ input{font:inherit;width:6em;padding:6px}
 <body>
 <h1>Prueba de impresión MP210</h1>
 <p>Imprime una guía de ancho del 1 al 10 directamente por Bluetooth, sin Print Fast. Ábrela en Bluefy.</p>
-
+ 
 <canvas id="vista" class="preview" width="384" height="10"></canvas>
 <button id="imprimir" type="button">Conectar e imprimir prueba</button>
+<button id="detener" class="sec" type="button" disabled>Detener envío</button>
 <button id="desconectar" class="sec" type="button" disabled>Desconectar</button>
 <div id="estado" role="status" aria-live="polite"></div>
-
+ 
 <details>
 <summary>Ajustes de envío</summary>
+<label>Modo de escritura
+<select id="modo"><option value="conf" selected>Con confirmación (más seguro)</option><option value="sin">Sin confirmación (más rápido)</option></select></label>
 <label>Bytes por bloque <input id="tam" type="number" value="100" min="20" max="180"></label>
-<label>Pausa entre bloques (ms) <input id="pausa" type="number" value="25" min="0" max="200"></label>
+<label>Pausa entre bloques (ms) <input id="pausa" type="number" value="30" min="0" max="200"></label>
+<p>Versión 2</p>
 <label>Filas por franja <input id="franja" type="number" value="64" min="8" max="255"></label>
 </details>
-
+ 
 <script>
 "use strict";
 const SERVICIO = "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -46,13 +50,13 @@ const CARACT = "49535343-8841-43f4-a8d4-ecbe34729bb3";
 const ANCHO = 384;
 const $ = id => document.getElementById(id);
 let dispositivo = null, caract = null;
-
+ 
 function decir(texto, error){
   const e = $("estado");
   e.textContent = texto;
   e.className = error ? "error" : "";
 }
-
+ 
 // Dibuja la prueba: borde, regla 1-10 al ancho completo, texto y bloque negro.
 function dibujarPrueba(){
   const c = $("vista"), g = c.getContext("2d");
@@ -84,7 +88,7 @@ function dibujarPrueba(){
   g.fillRect(20, 255, ANCHO - 40, 50);
   return c;
 }
-
+ 
 // Convierte el lienzo a bytes de 1 bit por pixel, 48 bytes por fila (negro = 1).
 function aRaster(c){
   const g = c.getContext("2d");
@@ -98,7 +102,7 @@ function aRaster(c){
     }
   return {bytes: out, bpf, filas};
 }
-
+ 
 // Une comandos ESC/POS: iniciar, franjas GS v 0, avance de papel.
 function armarComandos(r, filasFranja){
   const partes = [new Uint8Array([0x1B, 0x40])];
@@ -114,9 +118,9 @@ function armarComandos(r, filasFranja){
   for (const p of partes){ todo.set(p, pos); pos += p.length; }
   return todo;
 }
-
+ 
 const dormir = ms => new Promise(r => setTimeout(r, ms));
-
+ 
 async function conectar(){
   if (!navigator.bluetooth)
     throw new Error("Este navegador no tiene Web Bluetooth. Abre esta página en Bluefy.");
@@ -136,42 +140,60 @@ async function conectar(){
   caract = await servicio.getCharacteristic(CARACT);
   $("desconectar").disabled = false;
 }
-
+ 
+let imprimiendo = false, detenido = false, clics = 0, escrituras = 0;
+ 
 async function enviar(bytes){
   const tam = Math.max(20, Math.min(180, +$("tam").value || 100));
   const pausa = Math.max(0, +$("pausa").value || 0);
+  const confirmado = $("modo").value === "conf" || !caract.writeValueWithoutResponse;
+  escrituras = 0;
   for (let i = 0; i < bytes.length; i += tam){
+    if (detenido) throw new Error("Envío detenido. Se mandaron " + escrituras + " bloques.");
     const bloque = bytes.subarray(i, i + tam);
-    if (caract.writeValueWithoutResponse) await caract.writeValueWithoutResponse(bloque);
-    else await caract.writeValue(bloque);
+    if (confirmado) await caract.writeValueWithResponse(bloque);
+    else await caract.writeValueWithoutResponse(bloque);
+    escrituras++;
     if (pausa) await dormir(pausa);
-    if ((i / tam) % 20 === 0)
-      decir("Enviando… " + Math.round(100 * i / bytes.length) + " %");
+    if (escrituras % 10 === 0)
+      decir("Enviando… " + Math.round(100 * i / bytes.length) + " %\nBloques: " + escrituras +
+            " de " + Math.ceil(bytes.length / tam) + " · clics: " + clics);
   }
 }
-
+ 
 $("imprimir").addEventListener("click", async () => {
-  const boton = $("imprimir");
-  boton.disabled = true;
+  clics++;
+  if (imprimiendo){ decir("Ya hay un envío en curso. Clics: " + clics, true); return; }
+  imprimiendo = true; detenido = false;
+  $("imprimir").disabled = true; $("detener").disabled = false;
   try{
     decir("Conectando con la MP210…");
     await conectar();
     const r = aRaster(dibujarPrueba());
     const franja = Math.max(8, Math.min(255, +$("franja").value || 64));
-    await enviar(armarComandos(r, franja));
-    decir("Listo. Revisa que el 10 salga completo, sin cortarse.");
+    const comandos = armarComandos(r, franja);
+    await enviar(comandos);
+    decir("Listo. Bytes enviados: " + comandos.length + " en " + escrituras +
+          " bloques. Clics: " + clics + ".\nRevisa que el 10 salga completo, sin cortarse.");
   } catch (e){
     decir("No se pudo imprimir: " + (e && e.message ? e.message : e), true);
   } finally {
-    boton.disabled = false;
+    imprimiendo = false;
+    $("imprimir").disabled = false; $("detener").disabled = true;
   }
 });
-
+ 
+$("detener").addEventListener("click", () => {
+  detenido = true;
+  decir("Deteniendo…");
+});
+ 
 $("desconectar").addEventListener("click", () => {
   if (dispositivo && dispositivo.gatt.connected) dispositivo.gatt.disconnect();
 });
-
+ 
 dibujarPrueba();
 </script>
 </body>
 </html>
+ 
