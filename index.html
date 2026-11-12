@@ -26,23 +26,24 @@ input{font:inherit;width:6em;padding:6px}
 <body>
 <h1>Prueba de impresión MP210</h1>
 <p>Imprime una guía de ancho del 1 al 10 directamente por Bluetooth, sin Print Fast. Ábrela en Bluefy.</p>
- 
+
 <canvas id="vista" class="preview" width="384" height="10"></canvas>
-<button id="imprimir" type="button">Conectar e imprimir prueba</button>
+<button id="corta" type="button">Prueba corta (menos de 1 cm)</button>
+<button id="imprimir" class="sec" type="button">Prueba completa (unos 4 cm)</button>
 <button id="detener" class="sec" type="button" disabled>Detener envío</button>
 <button id="desconectar" class="sec" type="button" disabled>Desconectar</button>
 <div id="estado" role="status" aria-live="polite"></div>
- 
+
 <details>
 <summary>Ajustes de envío</summary>
 <label>Modo de escritura
 <select id="modo"><option value="conf" selected>Con confirmación (más seguro)</option><option value="sin">Sin confirmación (más rápido)</option></select></label>
 <label>Bytes por bloque <input id="tam" type="number" value="100" min="20" max="180"></label>
 <label>Pausa entre bloques (ms) <input id="pausa" type="number" value="30" min="0" max="200"></label>
-<p>Versión 2</p>
+<p>Versión 3</p>
 <label>Filas por franja <input id="franja" type="number" value="64" min="8" max="255"></label>
 </details>
- 
+
 <script>
 "use strict";
 const SERVICIO = "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -50,13 +51,13 @@ const CARACT = "49535343-8841-43f4-a8d4-ecbe34729bb3";
 const ANCHO = 384;
 const $ = id => document.getElementById(id);
 let dispositivo = null, caract = null;
- 
+
 function decir(texto, error){
   const e = $("estado");
   e.textContent = texto;
   e.className = error ? "error" : "";
 }
- 
+
 // Dibuja la prueba: borde, regla 1-10 al ancho completo, texto y bloque negro.
 function dibujarPrueba(){
   const c = $("vista"), g = c.getContext("2d");
@@ -88,7 +89,25 @@ function dibujarPrueba(){
   g.fillRect(20, 255, ANCHO - 40, 50);
   return c;
 }
- 
+
+// Prueba corta: solo la regla 1-10, 70 filas (unos 9 mm).
+function dibujarCorta(){
+  const c = $("vista"), g = c.getContext("2d");
+  c.height = 70;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, ANCHO, 70);
+  g.fillStyle = "#000"; g.strokeStyle = "#000"; g.lineWidth = 3;
+  const y = 18;
+  g.beginPath(); g.moveTo(2, y); g.lineTo(ANCHO - 2, y); g.stroke();
+  g.font = "bold 20px sans-serif"; g.textAlign = "left";
+  for (let n = 1; n <= 10; n++){
+    const x = 2 + (n - 1) * (ANCHO - 4) / 9;
+    g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x, y + 14); g.stroke();
+    const w = g.measureText(String(n)).width;
+    g.fillText(String(n), Math.max(2, Math.min(ANCHO - 2 - w, x - w / 2)), y + 40);
+  }
+  return c;
+}
+
 // Convierte el lienzo a bytes de 1 bit por pixel, 48 bytes por fila (negro = 1).
 function aRaster(c){
   const g = c.getContext("2d");
@@ -102,7 +121,7 @@ function aRaster(c){
     }
   return {bytes: out, bpf, filas};
 }
- 
+
 // Une comandos ESC/POS: iniciar, franjas GS v 0, avance de papel.
 function armarComandos(r, filasFranja){
   const partes = [new Uint8Array([0x1B, 0x40])];
@@ -118,9 +137,9 @@ function armarComandos(r, filasFranja){
   for (const p of partes){ todo.set(p, pos); pos += p.length; }
   return todo;
 }
- 
+
 const dormir = ms => new Promise(r => setTimeout(r, ms));
- 
+
 async function conectar(){
   if (!navigator.bluetooth)
     throw new Error("Este navegador no tiene Web Bluetooth. Abre esta página en Bluefy.");
@@ -140,9 +159,9 @@ async function conectar(){
   caract = await servicio.getCharacteristic(CARACT);
   $("desconectar").disabled = false;
 }
- 
+
 let imprimiendo = false, detenido = false, clics = 0, escrituras = 0;
- 
+
 async function enviar(bytes){
   const tam = Math.max(20, Math.min(180, +$("tam").value || 100));
   const pausa = Math.max(0, +$("pausa").value || 0);
@@ -160,16 +179,16 @@ async function enviar(bytes){
             " de " + Math.ceil(bytes.length / tam) + " · clics: " + clics);
   }
 }
- 
-$("imprimir").addEventListener("click", async () => {
+
+async function lanzar(dibujar){
   clics++;
   if (imprimiendo){ decir("Ya hay un envío en curso. Clics: " + clics, true); return; }
   imprimiendo = true; detenido = false;
-  $("imprimir").disabled = true; $("detener").disabled = false;
+  $("imprimir").disabled = true; $("corta").disabled = true; $("detener").disabled = false;
   try{
     decir("Conectando con la MP210…");
     await conectar();
-    const r = aRaster(dibujarPrueba());
+    const r = aRaster(dibujar());
     const franja = Math.max(8, Math.min(255, +$("franja").value || 64));
     const comandos = armarComandos(r, franja);
     await enviar(comandos);
@@ -179,21 +198,22 @@ $("imprimir").addEventListener("click", async () => {
     decir("No se pudo imprimir: " + (e && e.message ? e.message : e), true);
   } finally {
     imprimiendo = false;
-    $("imprimir").disabled = false; $("detener").disabled = true;
+    $("imprimir").disabled = false; $("corta").disabled = false; $("detener").disabled = true;
   }
-});
- 
+}
+$("imprimir").addEventListener("click", () => lanzar(dibujarPrueba));
+$("corta").addEventListener("click", () => lanzar(dibujarCorta));
+
 $("detener").addEventListener("click", () => {
   detenido = true;
   decir("Deteniendo…");
 });
- 
+
 $("desconectar").addEventListener("click", () => {
   if (dispositivo && dispositivo.gatt.connected) dispositivo.gatt.disconnect();
 });
- 
+
 dibujarPrueba();
 </script>
 </body>
 </html>
- 
