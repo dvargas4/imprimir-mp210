@@ -70,12 +70,6 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button:focus-visible,
-select:focus-visible {
-  outline: 3px solid #ffba86;
-  outline-offset: 2px;
-}
-
 button:not(:disabled):active {
   background: var(--naranja-oscuro);
 }
@@ -83,6 +77,12 @@ button:not(:disabled):active {
 button.secundario {
   background: var(--blanco);
   color: var(--naranja);
+}
+
+button:focus-visible,
+select:focus-visible {
+  outline: 3px solid #ffba86;
+  outline-offset: 2px;
 }
 
 select {
@@ -137,7 +137,6 @@ label.etiqueta-copias {
 </head>
 
 <body>
-
 <main>
 
   <h1>IMPRESORA</h1>
@@ -152,13 +151,15 @@ label.etiqueta-copias {
     <option value="">Consultando tickets...</option>
   </select>
 
-  <label for="copias" class="etiqueta-copias">
+  <label class="etiqueta-copias" for="copias">
     COPIAS
   </label>
 
   <select id="copias" aria-label="Número de copias">
     <option value="1">1 copia</option>
     <option value="2">2 copias</option>
+    <option value="3">3 copias</option>
+    <option value="4">4 copias</option>
   </select>
 
   <button id="imprimir" disabled>
@@ -189,10 +190,6 @@ const URL_PUENTE =
 
 const TOKEN_PUENTE = "2004";
 
-/* ==========================================
-   CONFIGURACIÓN MP210
-========================================== */
-
 const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
 
@@ -202,6 +199,9 @@ const CARACT =
 const COLS = 32;
 const INTERVALO_MS = 60000;
 
+const CLAVE_COPIAS =
+  "bluefy_copias_pendientes_v2";
+
 const $ = id => document.getElementById(id);
 
 const dormir = ms =>
@@ -209,6 +209,7 @@ const dormir = ms =>
 
 let dispositivo = null;
 let tx = null;
+
 let imprimiendo = false;
 let conectando = false;
 let cancelado = false;
@@ -217,60 +218,53 @@ let consultando = false;
 let pendientes = [];
 let historial = [];
 
-/* ==========================================
-   SEGUNDA COPIA
-
-   Se conserva dentro de la sesión para
-   permitir cortar el papel antes de continuar.
-========================================== */
-
-let segundaCopia = null;
-
-const CLAVE_SEGUNDA_COPIA =
-  "bluefy_segunda_copia";
-
-try {
-
-  const guardada = JSON.parse(
-    sessionStorage.getItem(
-      CLAVE_SEGUNDA_COPIA
-    ) || "null"
-  );
-
-  if (
-    guardada &&
-    guardada.datos &&
-    Date.now() - guardada.creado <
-      24 * 60 * 60 * 1000
-  ) {
-
-    segundaCopia = guardada;
-
-  } else {
-
-    sessionStorage.removeItem(
-      CLAVE_SEGUNDA_COPIA
-    );
-  }
-
-} catch (_) {}
+/*
+  Copias pendientes:
+  datos: contenido del ticket
+  total: cantidad solicitada (1 a 4)
+  proxima: número de la siguiente copia
+*/
+let copiasPendientes = null;
 
 /* ==========================================
    RECUPERAR HISTORIAL
 ========================================== */
 
 try {
-
   const previo = JSON.parse(
-    localStorage.getItem(
-      "bluefy_historial"
-    ) || "[]"
+    localStorage.getItem("bluefy_historial") || "[]"
   );
 
   if (Array.isArray(previo)) {
     historial = previo.slice(0, 35);
   }
+} catch (_) {}
 
+/* ==========================================
+   RECUPERAR COPIAS PENDIENTES
+========================================== */
+
+try {
+  const guardado = JSON.parse(
+    sessionStorage.getItem(CLAVE_COPIAS) || "null"
+  );
+
+  if (
+    guardado &&
+    guardado.datos &&
+    Number.isInteger(guardado.total) &&
+    Number.isInteger(guardado.proxima) &&
+    guardado.total >= 2 &&
+    guardado.total <= 4 &&
+    guardado.proxima >= 2 &&
+    guardado.proxima <= guardado.total &&
+    Date.now() - guardado.creado <
+      24 * 60 * 60 * 1000
+  ) {
+    copiasPendientes = guardado;
+  } else {
+    sessionStorage.removeItem(CLAVE_COPIAS);
+  }
 } catch (_) {}
 
 /* ==========================================
@@ -278,16 +272,12 @@ try {
 ========================================== */
 
 function registrar(mensaje) {
-
-  const hora = new Date().toLocaleString(
-    "es-MX",
-    {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    }
-  );
+  const hora = new Date().toLocaleString("es-MX", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
 
   historial.unshift({
     hora,
@@ -297,35 +287,27 @@ function registrar(mensaje) {
   historial = historial.slice(0, 35);
 
   try {
-
     localStorage.setItem(
       "bluefy_historial",
       JSON.stringify(historial)
     );
-
   } catch (_) {}
 
   dibujarHistorial();
 }
 
 function dibujarHistorial() {
-
   const contenedor = $("historial");
 
   contenedor.replaceChildren();
 
   if (!historial.length) {
-
-    contenedor.textContent =
-      "Sin movimientos.";
-
+    contenedor.textContent = "Sin movimientos.";
     return;
   }
 
   for (const item of historial) {
-
-    const div =
-      document.createElement("div");
+    const div = document.createElement("div");
 
     div.textContent =
       item.hora + " · " + item.mensaje;
@@ -339,7 +321,6 @@ function dibujarHistorial() {
 ========================================== */
 
 function conectado() {
-
   return !!(
     dispositivo &&
     dispositivo.gatt &&
@@ -349,82 +330,71 @@ function conectado() {
 }
 
 /* ==========================================
-   CONTROL DE BOTONES
+   BOTONES
 ========================================== */
 
 function botones() {
-
   $("conectar").disabled =
-    conectado() ||
-    imprimiendo ||
-    conectando;
+    conectado() || imprimiendo || conectando;
 
-  $("imprimir").textContent =
-    segundaCopia
-      ? "IMPRIMIR SEGUNDA COPIA"
-      : "IMPRIMIR";
+  $("imprimir").textContent = copiasPendientes
+    ? "IMPRIMIR COPIA " +
+      copiasPendientes.proxima +
+      " DE " +
+      copiasPendientes.total
+    : "IMPRIMIR";
 
   $("imprimir").disabled =
     !conectado() ||
     imprimiendo ||
     (
-      !segundaCopia &&
+      !copiasPendientes &&
       !$("tickets").value
     );
 
-  $("detener").disabled =
-    !conectado();
+  $("detener").disabled = !conectado();
 
   $("tickets").disabled =
-    imprimiendo ||
-    !!segundaCopia;
+    imprimiendo || !!copiasPendientes;
 
   $("copias").disabled =
-    imprimiendo ||
-    !!segundaCopia;
+    imprimiendo || !!copiasPendientes;
 }
 
 /* ==========================================
-   GUARDAR SEGUNDA COPIA
+   GUARDAR COPIAS RESTANTES
 ========================================== */
 
-function guardarSegundaCopia(datos) {
-
-  segundaCopia = {
+function guardarCopiasPendientes(
+  datos,
+  total,
+  proxima
+) {
+  copiasPendientes = {
     datos,
+    total,
+    proxima,
     creado: Date.now()
   };
 
   try {
-
     sessionStorage.setItem(
-      CLAVE_SEGUNDA_COPIA,
-      JSON.stringify(segundaCopia)
+      CLAVE_COPIAS,
+      JSON.stringify(copiasPendientes)
     );
-
   } catch (_) {
-
     registrar(
-      "La segunda copia no se conservará " +
-      "si recargas la página."
+      "Las copias restantes solo se conservarán " +
+      "mientras esta página siga abierta."
     );
   }
 }
 
-/* ==========================================
-   BORRAR SEGUNDA COPIA
-========================================== */
-
-function borrarSegundaCopia() {
-
-  segundaCopia = null;
+function borrarCopiasPendientes() {
+  copiasPendientes = null;
 
   try {
-
-    sessionStorage.removeItem(
-      CLAVE_SEGUNDA_COPIA
-    );
-
+    sessionStorage.removeItem(CLAVE_COPIAS);
   } catch (_) {}
 }
 
@@ -433,7 +403,6 @@ function borrarSegundaCopia() {
 ========================================== */
 
 function normal(s) {
-
   return String(s ?? "")
     .replace(/ñ/g, "n")
     .replace(/Ñ/g, "N")
@@ -445,44 +414,36 @@ function normal(s) {
 }
 
 function pair(a, b, w = COLS) {
-
   a = normal(a);
   b = normal(b);
 
   if (a.length + b.length + 1 > w) {
-
     return a + "\n" + b.padStart(w);
   }
 
   return a +
-    " ".repeat(
-      w - a.length - b.length
-    ) +
+    " ".repeat(w - a.length - b.length) +
     b;
 }
 
 function wrap(s, w = COLS) {
-
   const words = normal(s)
     .split(/\s+/)
     .filter(Boolean);
 
-  let lines = [];
+  const out = [];
   let line = "";
 
   for (const word0 of words) {
-
     let word = word0;
 
     while (word.length > w) {
-
       if (line) {
-        lines.push(line);
+        out.push(line);
         line = "";
       }
 
-      lines.push(word.slice(0, w));
-
+      out.push(word.slice(0, w));
       word = word.slice(w);
     }
 
@@ -493,26 +454,20 @@ function wrap(s, w = COLS) {
       : word;
 
     if (next.length > w) {
-
       if (line) {
-        lines.push(line);
+        out.push(line);
       }
-
       line = word;
-
     } else {
-
       line = next;
     }
   }
 
   if (line) {
-    lines.push(line);
+    out.push(line);
   }
 
-  return lines.length
-    ? lines
-    : [""];
+  return out.length ? out : [""];
 }
 
 /* ==========================================
@@ -520,17 +475,13 @@ function wrap(s, w = COLS) {
 ========================================== */
 
 function crearTicket(d) {
+  const a = [];
 
-  let a = [];
-
-  const cmd = (...xs) =>
-    a.push(...xs);
+  const cmd = (...xs) => a.push(...xs);
 
   const text = s =>
     a.push(
-      ...[...normal(s)].map(
-        c => c.charCodeAt(0)
-      )
+      ...[...normal(s)].map(c => c.charCodeAt(0))
     );
 
   const nl = () => cmd(10);
@@ -541,20 +492,14 @@ function crearTicket(d) {
   };
 
   const regla = (n = 1) => {
-
     for (let i = 0; i < n; i++) {
       ln("=".repeat(COLS));
     }
   };
 
-  const align = n =>
-    cmd(27, 97, n);
-
-  const bold = on =>
-    cmd(27, 69, on ? 1 : 0);
-
-  const size = n =>
-    cmd(29, 33, n);
+  const align = n => cmd(27, 97, n);
+  const bold = on => cmd(27, 69, on ? 1 : 0);
+  const size = n => cmd(29, 33, n);
 
   const lines = (v, w = COLS) =>
     wrap(v, w).forEach(ln);
@@ -593,14 +538,12 @@ function crearTicket(d) {
   }
 
   nl();
-
   align(0);
   regla();
 
   /* DATOS DEL CLIENTE */
 
   if (d.tipo === "remision") {
-
     bold(true);
     ln("DATOS DEL CLIENTE");
     bold(false);
@@ -608,7 +551,6 @@ function crearTicket(d) {
     lines(d.cliente);
 
     if (d.domicilio_entrega) {
-
       ln("DOMICILIO DE ENTREGA");
       lines(d.domicilio_entrega);
     }
@@ -622,10 +564,7 @@ function crearTicket(d) {
     }
 
     if (d.fecha_emision) {
-      lines(
-        "Expedicion: " +
-        d.fecha_emision
-      );
+      lines("Expedicion: " + d.fecha_emision);
     }
 
     if (d.contacto) {
@@ -635,16 +574,12 @@ function crearTicket(d) {
     if (d.telefono) {
       lines("Telefono: " + d.telefono);
     }
-
   } else {
-
     bold(true);
     ln("PEDIDO");
     bold(false);
 
-    lines(
-      (d.cliente || "").toUpperCase()
-    );
+    lines((d.cliente || "").toUpperCase());
 
     bold(true);
     ln("CONTACTO");
@@ -657,7 +592,6 @@ function crearTicket(d) {
     );
 
     if (d.domicilio_entrega) {
-
       bold(true);
       ln("DOMICILIO DE ENTREGA");
       bold(false);
@@ -669,39 +603,25 @@ function crearTicket(d) {
   /* PRODUCTOS */
 
   regla();
-
   bold(true);
   ln(pair("PRODUCTO", "VENTA"));
   bold(false);
-
   regla();
 
   for (const p of (d.productos || [])) {
-
-    const precio =
-      normal(p.venta || "");
-
-    const nombre =
-      normal(p.nombre || "");
+    const precio = normal(p.venta || "");
+    const nombre = normal(p.nombre || "");
 
     const disponible = Math.max(
       12,
       COLS - precio.length - 1
     );
 
-    const nombreLineas = wrap(
-      nombre,
-      disponible
-    );
+    const partes = wrap(nombre, disponible);
 
-    ln(
-      pair(
-        nombreLineas[0],
-        precio
-      )
-    );
+    ln(pair(partes[0], precio));
 
-    nombreLineas.slice(1).forEach(ln);
+    partes.slice(1).forEach(ln);
 
     ln(normal(p.cantidad));
 
@@ -709,7 +629,6 @@ function crearTicket(d) {
       d.tipo === "remision" &&
       p.precio_unitario
     ) {
-
       lines(
         "Precio unitario: " +
         p.precio_unitario
@@ -723,31 +642,15 @@ function crearTicket(d) {
 
   regla();
 
-  ln(
-    pair(
-      "Productos",
-      d.total_productos
-    )
-  );
-
-  ln(
-    pair(
-      "Subtotal",
-      d.subtotal
-    )
-  );
+  ln(pair("Productos", d.total_productos));
+  ln(pair("Subtotal", d.subtotal));
 
   if (d.envio) {
     ln(pair("Envio", d.envio));
   }
 
   if (d.descuento) {
-    ln(
-      pair(
-        "Descuento",
-        d.descuento
-      )
-    );
+    ln(pair("Descuento", d.descuento));
   }
 
   regla();
@@ -764,30 +667,20 @@ function crearTicket(d) {
   /* REMISIÓN O TICKET */
 
   if (d.tipo === "remision") {
-
     bold(true);
     ln("PAGO");
     bold(false);
 
     if (d.estado_pago) {
-      lines(
-        "Estado: " +
-        d.estado_pago
-      );
+      lines("Estado: " + d.estado_pago);
     }
 
     if (d.medio_pago) {
-      lines(
-        "Medio: " +
-        d.medio_pago
-      );
+      lines("Medio: " + d.medio_pago);
     }
 
     if (d.cfdi_referencia) {
-      lines(
-        "CFDI: " +
-        d.cfdi_referencia
-      );
+      lines("CFDI: " + d.cfdi_referencia);
     }
 
     regla();
@@ -797,7 +690,6 @@ function crearTicket(d) {
     bold(false);
 
     if (d.observaciones_remision) {
-
       lines(
         "Observaciones: " +
         d.observaciones_remision
@@ -809,19 +701,11 @@ function crearTicket(d) {
     ln("Fecha y hora: _____________");
 
     regla();
-
     align(1);
 
-    lines(
-      "Este documento no es un CFDI."
-    );
-
-    lines(
-      "La recepcion no acredita el pago."
-    );
-
+    lines("Este documento no es un CFDI.");
+    lines("La recepcion no acredita el pago.");
   } else {
-
     align(1);
     bold(true);
 
@@ -830,8 +714,7 @@ function crearTicket(d) {
     bold(false);
 
     lines(
-      "Solo informativo. " +
-      "No es comprobante fiscal."
+      "Solo informativo. No es comprobante fiscal."
     );
   }
 
@@ -845,48 +728,32 @@ function crearTicket(d) {
 }
 
 /* ==========================================
-   ENVIAR BYTES A MP210
+   ENVIAR BYTES A LA MP210
 ========================================== */
 
 async function enviar(bytes) {
-
   for (
     let i = 0;
     i < bytes.length;
     i += 20
   ) {
-
     if (cancelado) {
-
       throw Error(
         "Impresion detenida. " +
-        "El ticket puede haber salido incompleto."
+        "Puede haber salido incompleta."
       );
     }
 
     if (!conectado()) {
-
-      throw Error(
-        "Impresora desconectada."
-      );
+      throw Error("Impresora desconectada.");
     }
 
-    const parte = bytes.slice(
-      i,
-      i + 20
-    );
+    const parte = bytes.slice(i, i + 20);
 
     if (tx.properties.write) {
-
-      await tx.writeValueWithResponse(
-        parte
-      );
-
+      await tx.writeValueWithResponse(parte);
     } else {
-
-      await tx.writeValueWithoutResponse(
-        parte
-      );
+      await tx.writeValueWithoutResponse(parte);
     }
 
     await dormir(100);
@@ -894,123 +761,94 @@ async function enviar(bytes) {
 }
 
 /* ==========================================
-   GOOGLE APPS SCRIPT
+   CONEXIÓN CON GOOGLE APPS SCRIPT
 ========================================== */
 
-function llamarPuente(
-  accion,
-  params = {}
-) {
-
-  return new Promise(
-    (resolve, reject) => {
-
-      if (
-        !/^\d{4}$/.test(TOKEN_PUENTE)
-      ) {
-
-        reject(
-          Error(
-            "PIN inválido en el código."
-          )
-        );
-
-        return;
-      }
-
-      const cb =
-        "bluefy_cb_" +
-        Math.random()
-          .toString(36)
-          .slice(2);
-
-      const script =
-        document.createElement("script");
-
-      let terminado = false;
-
-      const limpiar = () => {
-
-        clearTimeout(timer);
-        delete window[cb];
-        script.remove();
-      };
-
-      const timer = setTimeout(() => {
-
-        if (terminado) return;
-
-        terminado = true;
-        limpiar();
-
-        reject(
-          Error(
-            "Tiempo de consulta agotado."
-          )
-        );
-
-      }, 18000);
-
-      window[cb] = respuesta => {
-
-        if (terminado) return;
-
-        terminado = true;
-        limpiar();
-
-        if (
-          !respuesta ||
-          !respuesta.ok
-        ) {
-
-          reject(
-            Error(
-              respuesta?.error ||
-              "Error del puente."
-            )
-          );
-
-        } else {
-
-          resolve(respuesta);
-        }
-      };
-
-      script.onerror = () => {
-
-        if (terminado) return;
-
-        terminado = true;
-        limpiar();
-
-        reject(
-          Error(
-            "No se pudo contactar al puente."
-          )
-        );
-      };
-
-      script.src =
-        URL_PUENTE +
-        "?" +
-        new URLSearchParams({
-          accion,
-          token: TOKEN_PUENTE,
-          callback: cb,
-          ...params
-        });
-
-      document.head.appendChild(script);
+function llamarPuente(accion, params = {}) {
+  return new Promise((resolve, reject) => {
+    if (!/^\d{4}$/.test(TOKEN_PUENTE)) {
+      reject(
+        Error("PIN inválido en el código.")
+      );
+      return;
     }
-  );
+
+    const cb =
+      "bluefy_cb_" +
+      Math.random().toString(36).slice(2);
+
+    const script =
+      document.createElement("script");
+
+    let terminado = false;
+
+    const limpiar = () => {
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+    };
+
+    const timer = setTimeout(() => {
+      if (terminado) return;
+
+      terminado = true;
+      limpiar();
+
+      reject(
+        Error("Tiempo de consulta agotado.")
+      );
+    }, 18000);
+
+    window[cb] = respuesta => {
+      if (terminado) return;
+
+      terminado = true;
+      limpiar();
+
+      if (!respuesta || !respuesta.ok) {
+        reject(
+          Error(
+            respuesta?.error ||
+            "Error del puente."
+          )
+        );
+      } else {
+        resolve(respuesta);
+      }
+    };
+
+    script.onerror = () => {
+      if (terminado) return;
+
+      terminado = true;
+      limpiar();
+
+      reject(
+        Error(
+          "No se pudo contactar al puente."
+        )
+      );
+    };
+
+    script.src =
+      URL_PUENTE +
+      "?" +
+      new URLSearchParams({
+        accion,
+        token: TOKEN_PUENTE,
+        callback: cb,
+        ...params
+      });
+
+    document.head.appendChild(script);
+  });
 }
 
 /* ==========================================
-   CONSULTAR COLA DE TICKETS
+   CONSULTAR TICKETS PENDIENTES
 ========================================== */
 
 async function cargarTickets() {
-
   if (consultando || imprimiendo) {
     return;
   }
@@ -1022,21 +860,15 @@ async function cargarTickets() {
   );
 
   try {
-
     const respuesta =
       await llamarPuente("listar");
 
-    pendientes = Array.isArray(
-      respuesta.tickets
-    )
+    pendientes = Array.isArray(respuesta.tickets)
       ? respuesta.tickets
       : [];
 
-    const anterior =
-      $("tickets").value;
-
-    const selector =
-      $("tickets");
+    const anterior = $("tickets").value;
+    const selector = $("tickets");
 
     selector.replaceChildren();
 
@@ -1045,15 +877,13 @@ async function cargarTickets() {
 
     vacio.value = "";
 
-    vacio.textContent =
-      pendientes.length
-        ? "Selecciona un ticket"
-        : "No hay tickets pendientes";
+    vacio.textContent = pendientes.length
+      ? "Selecciona un ticket"
+      : "No hay tickets pendientes";
 
     selector.appendChild(vacio);
 
     for (const job of pendientes) {
-
       const opt =
         document.createElement("option");
 
@@ -1071,11 +901,8 @@ async function cargarTickets() {
     }
 
     if (
-      pendientes.some(
-        j => j.id === anterior
-      )
+      pendientes.some(j => j.id === anterior)
     ) {
-
       selector.value = anterior;
     }
 
@@ -1084,16 +911,12 @@ async function cargarTickets() {
       pendientes.length +
       " ticket(s) pendientes."
     );
-
   } catch (err) {
-
     registrar(
       "No se pudo consultar la cola: " +
       err.message
     );
-
   } finally {
-
     consultando = false;
     botones();
   }
@@ -1104,12 +927,9 @@ async function cargarTickets() {
 ========================================== */
 
 async function conectar() {
-
   if (!navigator.bluetooth) {
-
     throw Error(
-      "Usa Chrome compatible " +
-      "o Bluefy en iPhone."
+      "Usa Chrome compatible o Bluefy en iPhone."
     );
   }
 
@@ -1120,15 +940,12 @@ async function conectar() {
           namePrefix: "MP210"
         }
       ],
-      optionalServices: [
-        SERVICIO
-      ]
+      optionalServices: [SERVICIO]
     });
 
   dispositivo.addEventListener(
     "gattserverdisconnected",
     () => {
-
       tx = null;
       cancelado = true;
 
@@ -1144,20 +961,15 @@ async function conectar() {
     await dispositivo.gatt.connect();
 
   const servicio =
-    await server.getPrimaryService(
-      SERVICIO
-    );
+    await server.getPrimaryService(SERVICIO);
 
   tx =
-    await servicio.getCharacteristic(
-      CARACT
-    );
+    await servicio.getCharacteristic(CARACT);
 
   if (
     !tx.properties.write &&
     !tx.properties.writeWithoutResponse
   ) {
-
     throw Error(
       "La impresora no admite escritura."
     );
@@ -1177,11 +989,7 @@ async function conectar() {
 ========================================== */
 
 $("conectar").onclick = async () => {
-
-  if (
-    conectando ||
-    conectado()
-  ) {
+  if (conectando || conectado()) {
     return;
   }
 
@@ -1190,20 +998,14 @@ $("conectar").onclick = async () => {
   botones();
 
   try {
-
     await conectar();
-
     await cargarTickets();
-
   } catch (err) {
-
     registrar(
       "Error de conexión: " +
       err.message
     );
-
   } finally {
-
     conectando = false;
     botones();
   }
@@ -1218,66 +1020,86 @@ $("tickets").onchange = botones;
 /* ==========================================
    IMPRIMIR
 
-   1 COPIA:
-   Imprime y finaliza.
+   1, 2, 3 O 4 COPIAS
 
-   2 COPIAS:
-   Imprime primera copia.
-   Espera a que el usuario corte.
-   Imprime segunda copia únicamente
-   después de volver a pulsar el botón.
+   SIEMPRE ESPERA UNA NUEVA PULSACIÓN
+   ANTES DE IMPRIMIR CADA COPIA.
 ========================================== */
 
 $("imprimir").onclick = async () => {
-
-  if (
-    imprimiendo ||
-    !conectado()
-  ) {
+  if (imprimiendo || !conectado()) {
     return;
   }
 
-  /* SEGUNDA COPIA PENDIENTE */
+  /* COPIAS 2, 3 O 4 */
 
-  if (segundaCopia) {
-
+  if (copiasPendientes) {
     imprimiendo = true;
     cancelado = false;
 
     botones();
 
-    try {
+    const {
+      datos,
+      total,
+      proxima
+    } = copiasPendientes;
 
+    try {
       registrar(
-        "Imprimiendo segunda copia..."
+        "Enviando copia " +
+        proxima +
+        " de " +
+        total +
+        "..."
       );
 
       await enviar(
-        crearTicket(
-          segundaCopia.datos
-        )
+        crearTicket(datos)
       );
 
-      borrarSegundaCopia();
+      if (proxima < total) {
+        guardarCopiasPendientes(
+          datos,
+          total,
+          proxima + 1
+        );
 
-      registrar(
-        "Segunda copia enviada. " +
-        "Impresión de 2 copias terminada."
-      );
+        registrar(
+          "Copia " +
+          proxima +
+          " de " +
+          total +
+          " enviada. Corta el papel y pulsa " +
+          "IMPRIMIR COPIA " +
+          (proxima + 1) +
+          " DE " +
+          total +
+          "."
+        );
+      } else {
+        borrarCopiasPendientes();
 
+        registrar(
+          "Copia " +
+          total +
+          " de " +
+          total +
+          " enviada. " +
+          "Todas las copias terminadas."
+        );
+      }
     } catch (err) {
-
       registrar(
-        "Error en segunda copia: " +
+        "Error en copia " +
+        proxima +
+        " de " +
+        total +
+        ": " +
         err.message +
         ". Revisa el papel antes de reintentar."
       );
-
-      // Conservamos la segunda copia.
-      // Nunca reimprimimos automáticamente.
-
     } finally {
-
       imprimiendo = false;
       botones();
     }
@@ -1287,15 +1109,17 @@ $("imprimir").onclick = async () => {
 
   /* PRIMERA COPIA */
 
-  const id =
-    $("tickets").value;
+  const id = $("tickets").value;
 
   if (!id) return;
 
-  const cantidad =
-    Number($("copias").value) === 2
-      ? 2
-      : 1;
+  const total = Math.max(
+    1,
+    Math.min(
+      4,
+      Number($("copias").value) || 1
+    )
+  );
 
   imprimiendo = true;
   cancelado = false;
@@ -1304,32 +1128,27 @@ $("imprimir").onclick = async () => {
 
   let tomado = false;
   let primeraEnviada = false;
+  let datos = null;
 
   try {
+    const respuesta =
+      await llamarPuente("tomar", {id});
 
-    const r = await llamarPuente(
-      "tomar",
-      {id}
-    );
-
-    if (!r.trabajo) {
-
+    if (!respuesta.trabajo) {
       throw Error(
         "Ticket no disponible."
       );
     }
 
     tomado = true;
-
-    const datos =
-      r.trabajo.datos;
+    datos = respuesta.trabajo.datos;
 
     registrar(
-      "Imprimiendo " +
+      "Enviando " +
       (datos.cliente || "ticket") +
       ": copia 1 de " +
-      cantidad +
-      "."
+      total +
+      "..."
     );
 
     await enviar(
@@ -1338,51 +1157,45 @@ $("imprimir").onclick = async () => {
 
     primeraEnviada = true;
 
-    /* SI SON DOS COPIAS,
-       GUARDAR LA SEGUNDA */
+    /* GUARDAR LA SIGUIENTE COPIA */
 
-    if (cantidad === 2) {
-
-      guardarSegundaCopia(datos);
+    if (total > 1) {
+      guardarCopiasPendientes(
+        datos,
+        total,
+        2
+      );
     }
 
-    /* CONFIRMAR PRIMERA IMPRESIÓN
-       PARA RETIRAR DE LA COLA */
+    /* RETIRAR TICKET DE LA COLA */
 
     await llamarPuente(
       "confirmar",
       {id}
     );
 
-    if (cantidad === 2) {
-
+    if (total > 1) {
       registrar(
-        "Primera copia enviada. " +
-        "CORTA EL TICKET y después pulsa " +
-        "IMPRIMIR SEGUNDA COPIA."
+        "Copia 1 de " +
+        total +
+        " enviada. " +
+        "Corta el papel y pulsa " +
+        "IMPRIMIR COPIA 2 DE " +
+        total +
+        "."
       );
-
     } else {
-
       registrar(
         "Ticket enviado y confirmado."
       );
     }
-
   } catch (err) {
-
     registrar(
-      "Error: " +
-      err.message
+      "Error: " + err.message
     );
 
-    if (
-      tomado &&
-      !primeraEnviada
-    ) {
-
+    if (tomado && !primeraEnviada) {
       try {
-
         await llamarPuente(
           "error",
           {
@@ -1392,35 +1205,27 @@ $("imprimir").onclick = async () => {
             )
           }
         );
-
       } catch (_) {
-
         registrar(
           "No se pudo registrar el error. " +
-          "Revisa la impresora y el ticket."
+          "Revisa el papel antes de reintentar."
         );
       }
-
     } else if (primeraEnviada) {
-
       registrar(
-        "La primera copia ya fue enviada, " +
-        "pero no se pudo verificar la " +
-        "confirmación del puente. " +
-        "No reenvíes desde Streamlit."
+        "La primera copia se envió, " +
+        "pero no se pudo confirmar el puente. " +
+        "No reenvíes el ticket desde Streamlit."
       );
 
-      if (cantidad === 2) {
-
+      if (total > 1) {
         registrar(
-          "Corta el ticket. " +
-          "La segunda copia sigue disponible."
+          "Las copias restantes siguen " +
+          "disponibles en esta página."
         );
       }
     }
-
   } finally {
-
     imprimiendo = false;
 
     botones();
@@ -1434,13 +1239,11 @@ $("imprimir").onclick = async () => {
 ========================================== */
 
 $("detener").onclick = () => {
-
   cancelado = true;
 
   if (
     dispositivo?.gatt?.connected
   ) {
-
     dispositivo.gatt.disconnect();
   }
 
@@ -1461,26 +1264,25 @@ setInterval(
 );
 
 /* ==========================================
-   INICIALIZACIÓN
+   INICIAR APLICACIÓN
 ========================================== */
 
 dibujarHistorial();
-
 botones();
 
-if (segundaCopia) {
-
+if (copiasPendientes) {
   registrar(
-    "Segunda copia pendiente. " +
-    "Corta el papel y pulsa " +
-    "IMPRIMIR SEGUNDA COPIA " +
-    "cuando conectes la impresora."
+    "Tienes pendiente la copia " +
+    copiasPendientes.proxima +
+    " de " +
+    copiasPendientes.total +
+    ". Conecta la impresora, corta el papel " +
+    "y presiona el botón para continuar."
   );
 }
 
 cargarTickets();
 
 </script>
-
 </body>
 </html>
