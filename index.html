@@ -1,497 +1,1214 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MP210 | Impresión Bluefy</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bluefy | MP210</title>
 
 <style>
-:root {
-  --bg: #f7f8f6;
-  --fg: #202824;
-  --green: #246a50;
-  --border: #d7dfd9;
+:root{
+  --bg:#f7f8f6;
+  --fg:#202824;
+  --green:#246a50;
+  --line:#d7dfd9;
 }
 
-* {
-  box-sizing: border-box;
+*{
+  box-sizing:border-box;
 }
 
-body {
-  font-family: -apple-system, system-ui, sans-serif;
-  max-width: 520px;
-  margin: auto;
-  padding: 24px 16px;
-  background: var(--bg);
-  color: var(--fg);
+body{
+  font:16px/1.5 -apple-system,system-ui,sans-serif;
+  margin:0 auto;
+  padding:24px 16px;
+  max-width:540px;
+  background:var(--bg);
+  color:var(--fg);
 }
 
-h1 {
-  font-size: 25px;
+.card{
+  padding:18px;
+  background:white;
+  border:1px solid var(--line);
+  border-radius:14px;
+  margin:14px 0;
 }
 
-p {
-  color: #65716a;
-  line-height: 1.5;
+h1{
+  font-size:25px;
 }
 
-.card {
-  background: white;
-  border: 1px solid var(--border);
-  padding: 18px;
-  border-radius: 14px;
-  margin: 15px 0;
+p{
+  color:#57665e;
 }
 
-button {
-  display: block;
-  width: 100%;
-  padding: 15px;
-  margin: 12px 0;
-  border: none;
-  border-radius: 10px;
-  font-size: 16px;
-  font-weight: 600;
-  background: var(--green);
-  color: white;
+button{
+  display:block;
+  width:100%;
+  padding:15px;
+  margin:10px 0;
+  border:0;
+  border-radius:9px;
+  background:var(--green);
+  color:white;
+  font-size:16px;
+  font-weight:600;
 }
 
-button.secondary {
-  color: var(--green);
-  background: white;
-  border: 1px solid var(--green);
+button:disabled{
+  opacity:.4;
 }
 
-button.danger {
-  color: #bd453b;
-  background: white;
-  border: 1px solid #bd453b;
+button.sec{
+  background:white;
+  color:var(--green);
+  border:1px solid var(--green);
 }
 
-button:disabled {
-  opacity: 0.4;
+code{
+  overflow-wrap:anywhere;
 }
 
-.receipt {
-  font-family: monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  white-space: pre;
-  overflow-x: auto;
+#estado{
+  white-space:pre-wrap;
+  font:14px/1.6 system-ui;
+  min-height:4em;
 }
 
-#status {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font-size: 14px;
-  line-height: 1.6;
+small{
+  color:#5b6960;
 }
-
 </style>
 </head>
 
 <body>
 
-<h1>Impresora MP210</h1>
-<p>Prueba de impresión directa desde Bluefy.</p>
+<h1>Impresión MP210</h1>
+
+<p>
+Recibe tickets automáticamente desde la app de verduras,
+sin PDF, PNG ni Print Fast.
+</p>
 
 <div class="card">
-  <h3>1. Conexión Bluetooth</h3>
 
-  <button id="connect">
-    Conectar impresora
+  <b>Configuración inicial del puente</b>
+
+  <p>
+    Introduce la dirección del Apps Script y el token
+    privado una sola vez en este dispositivo.
+    No los publiques dentro del HTML.
+  </p>
+
+  <label>URL del Apps Script</label>
+
+  <input
+    id="urlPuente"
+    type="url"
+    placeholder="https://script.google.com/macros/s/.../exec"
+    autocapitalize="off"
+    autocomplete="off"
+    style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #d7dfd9;border-radius:8px"
+  >
+
+  <label>Token privado</label>
+
+  <input
+    id="tokenPuente"
+    type="password"
+    placeholder="Token de al menos 32 caracteres"
+    autocomplete="off"
+    style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #d7dfd9;border-radius:8px"
+  >
+
+  <button id="guardarConfig" class="sec">
+    Guardar configuración en este dispositivo
   </button>
 
-  <p id="connection">
-    Impresora desconectada
-  </p>
 </div>
 
 <div class="card">
-  <h3>2. Pruebas de impresión</h3>
 
-  <button id="test" class="secondary" disabled>
+  <b>Impresora</b>
+
+  <p id="conexion">
+    Desconectada
+  </p>
+
+  <button id="conectar">
+    Conectar MP210
+  </button>
+
+  <button id="test" class="sec" disabled>
     Imprimir TEST
   </button>
 
-  <button id="ticket" disabled>
-    Imprimir mini ticket de verduras
+  <button id="buscar" class="sec" disabled>
+    Revisar pendientes ahora
   </button>
 
-  <button id="stop" class="danger" disabled>
+  <button id="detener" class="sec" disabled>
     Detener y desconectar
   </button>
 
+</div>
+
+<div class="card">
+
+  <b>Recepción automática</b>
+
   <p>
-    Cada botón envía un solo trabajo.
-    No se utilizan imágenes.
+    Revisión cada <b>60 segundos</b> mientras
+    Bluefy esté abierto y la impresora conectada.
+    No se consulta ninguna hoja de Google Sheets
+    ni Sat_Cola.
   </p>
-</div>
 
-<div class="card">
-  <h3>Vista previa del ticket</h3>
-
-  <div class="receipt">FRUTI VERDURA A DOMICILIO
---------------------------------
-       PRUEBA BLUEFY
---------------------------------
-Producto        Cant.      Total
-Papa            1 kg      $28.00
-Jitomate        2 kg      $68.00
---------------------------------
-TOTAL                    $96.00
---------------------------------
-      FIN DE PRUEBA</div>
-</div>
-
-<div class="card">
-  <h3>Estado</h3>
-  <div id="status">
-    Listo para conectar.
+  <div id="estado">
+    Configura el enlace y token en los campos superiores.
   </div>
+
 </div>
 
 <script>
 "use strict";
 
-// UUID Bluetooth de la impresora MP210
-const UUID_SERVICE =
+// CONFIGURACIÓN LOCAL
+// No escribir credenciales en código público.
+
+let URL_PUENTE =
+  localStorage.getItem("bluefy_url") || "";
+
+let TOKEN_PUENTE =
+  localStorage.getItem("bluefy_token") || "";
+
+// UUID Bluetooth de la MP210
+
+const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
 
-const UUID_TX =
+const CARACT =
   "49535343-8841-43f4-a8d4-ecbe34729bb3";
+
+const INTERVALO_MS = 60000;
+
+const COLS = 32;
 
 const $ = id => document.getElementById(id);
 
-const sleep = ms =>
-  new Promise(resolve => setTimeout(resolve, ms));
-
-let device = null;
+let dispositivo = null;
 let tx = null;
 let busy = false;
-let cancelled = false;
+let canceled = false;
+let consultando = false;
 
-// Mostrar estado
-function status(message) {
-  $("status").textContent = message;
+let ultimoError = "";
+let ultimoId = "";
+
+// ESTADO
+
+function estado(s) {
+  $("estado").textContent = s;
 }
 
-// Habilitar o bloquear botones
-function controls() {
-  const connected = !!(
-    device &&
-    device.gatt &&
-    device.gatt.connected &&
+function conectado() {
+  return !!(
+    dispositivo &&
+    dispositivo.gatt &&
+    dispositivo.gatt.connected &&
     tx
   );
-
-  $("connect").disabled = busy || connected;
-  $("test").disabled = busy || !connected;
-  $("ticket").disabled = busy || !connected;
-  $("stop").disabled = !connected;
-
-  $("connection").textContent =
-    connected
-      ? "Impresora conectada"
-      : "Impresora desconectada";
 }
 
-// Conectar mediante Web Bluetooth
-async function connect() {
+function botones() {
+
+  const c = conectado();
+
+  $("conectar").disabled = c || busy;
+
+  $("test").disabled = !c || busy;
+
+  $("buscar").disabled =
+    !c || busy || consultando;
+
+  $("detener").disabled = !c;
+
+  $("conexion").textContent =
+    c ? "Conectada" : "Desconectada";
+}
+
+const dormir = ms =>
+  new Promise(r => setTimeout(r, ms));
+
+// CONECTAR IMPRESORA
+
+async function conectar() {
 
   if (!navigator.bluetooth) {
-    throw new Error(
-      "Bluetooth no disponible. Abre la página HTTPS en Bluefy."
+    throw Error(
+      "Abre esta pagina HTTPS desde Bluefy."
     );
   }
 
-  const selected =
+  dispositivo =
     await navigator.bluetooth.requestDevice({
       filters: [
         { namePrefix: "MP210" }
       ],
-      optionalServices: [UUID_SERVICE]
+      optionalServices: [SERVICIO]
     });
 
-  device = selected;
-
-  device.addEventListener(
+  dispositivo.addEventListener(
     "gattserverdisconnected",
     () => {
+
       tx = null;
-      cancelled = true;
-      controls();
-      status("Impresora desconectada.");
+      canceled = true;
+
+      estado(
+        "Desconectada. Reabre la conexión para recibir nuevos trabajos."
+      );
+
+      botones();
+
     }
   );
 
   const server =
-    await device.gatt.connect();
+    await dispositivo.gatt.connect();
 
   const service =
-    await server.getPrimaryService(UUID_SERVICE);
+    await server.getPrimaryService(SERVICIO);
 
   tx =
-    await service.getCharacteristic(UUID_TX);
+    await service.getCharacteristic(CARACT);
 
   if (
     !tx.properties.write &&
     !tx.properties.writeWithoutResponse
   ) {
-    throw new Error(
-      "La característica Bluetooth no admite escritura."
+    throw Error(
+      "Caracteristica sin escritura."
     );
   }
 
-  controls();
+  botones();
 
-  status(
-    "Conexión correcta. No se ha enviado ningún dato."
-  );
-}
-
-// Convertir texto a bytes
-function ascii(text) {
-  return new TextEncoder().encode(text);
-}
-
-// Prueba TEST
-const testBytes = new Uint8Array([
-  27, 64,
-  84, 69, 83, 84,
-  10, 10, 10
-]);
-
-// Crear ticket ESC/POS de solo texto
-function ticketBytes() {
-
-  const ticket = [
-    "FRUTI VERDURA A DOMICILIO",
-    "--------------------------------",
-    "       PRUEBA BLUEFY",
-    "--------------------------------",
-    "Producto        Cant.      Total",
-    "Papa            1 kg      $28.00",
-    "Jitomate        2 kg      $68.00",
-    "--------------------------------",
-    "TOTAL                    $96.00",
-    "--------------------------------",
-    "      FIN DE PRUEBA",
-    "",
-    ""
-  ].join("\n");
-
-  const body = ascii(ticket);
-
-  // ESC @ reinicia el modo de impresión
-  const output = new Uint8Array(
-    2 + body.length
+  estado(
+    "Bluetooth conectado. Revisando trabajos..."
   );
 
-  output.set([27, 64], 0);
-  output.set(body, 2);
-
-  return output;
+  await revisar();
 }
 
-// Enviar bytes de forma controlada
-async function writeOnce(bytes) {
+// ENVÍO BLUETOOTH
 
-  if (!tx) {
-    throw new Error(
-      "Primero conecta la impresora."
-    );
-  }
+async function enviar(bytes) {
 
-  // Limitar el tamaño total
-  const maxBytes = 650;
+  // Mismo método que funcionó en la prueba:
+  // 20 bytes por bloque, pausa de 100 ms.
 
-  if (bytes.length > maxBytes) {
-    throw new Error(
-      "Se superó el límite de seguridad."
-    );
-  }
-
-  let blocks = 0;
-
-  // Bloques pequeños de 20 bytes
   for (
     let i = 0;
     i < bytes.length;
     i += 20
   ) {
 
-    if (cancelled) {
-      throw new Error(
-        "Envío interrumpido."
+    if (canceled) {
+      throw Error(
+        "Envio cancelado; es posible que el ticket este incompleto."
       );
     }
 
-    const part = bytes.slice(
-      i,
-      Math.min(i + 20, bytes.length)
-    );
+    if (!conectado()) {
+      throw Error(
+        "Bluetooth desconectado."
+      );
+    }
 
-    // Priorizar escritura con confirmación
+    const part =
+      bytes.slice(i, i + 20);
+
     if (tx.properties.write) {
 
       await tx.writeValueWithResponse(part);
 
-    } else if (
-      tx.properties.writeWithoutResponse
-    ) {
+    } else {
 
       await tx.writeValueWithoutResponse(part);
 
-    } else {
-
-      throw new Error(
-        "No hay método de escritura."
-      );
     }
 
-    blocks++;
-
-    status(
-      "Enviando...\n" +
-      Math.min(i + part.length, bytes.length) +
-      " / " +
-      bytes.length +
-      " bytes\nBloques: " +
-      blocks
-    );
-
-    // Pausa para no saturar la impresora
-    await sleep(100);
+    await dormir(100);
   }
-
-  await sleep(350);
-
-  return blocks;
 }
 
-// Ejecutar un solo trabajo
-async function runJob(which) {
+// FORMATO DE TEXTO
+
+function normal(s) {
+
+  return String(s ?? "")
+    .replace(/ñ/g, "n")
+    .replace(/Ñ/g, "N")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[^\x20-\x7e]/g, " ");
+}
+
+function centro(s, w = COLS) {
+
+  s = normal(s);
+
+  return s.length >= w
+    ? s
+    : s
+        .padStart(Math.floor((w + s.length) / 2))
+        .padEnd(w);
+}
+
+function pair(a, b, w = COLS) {
+
+  a = normal(a);
+  b = normal(b);
+
+  if (a.length + b.length + 1 > w) {
+    return a + "\n" + b.padStart(w);
+  }
+
+  return a +
+    " ".repeat(w - a.length - b.length) +
+    b;
+}
+
+function wrap(s, w = COLS) {
+
+  const words =
+    normal(s).split(/\s+/).filter(Boolean);
+
+  let lines = [];
+  let line = "";
+
+  for (const word0 of words) {
+
+    let word = word0;
+
+    while (word.length > w) {
+
+      if (line) {
+        lines.push(line);
+        line = "";
+      }
+
+      lines.push(word.slice(0, w));
+      word = word.slice(w);
+    }
+
+    if (!word) continue;
+
+    const next =
+      line ? line + " " + word : word;
+
+    if (next.length > w) {
+
+      if (line) lines.push(line);
+
+      line = word;
+
+    } else {
+
+      line = next;
+
+    }
+  }
+
+  if (line) lines.push(line);
+
+  return lines.length ? lines : [""];
+}
+
+// GENERAR TICKET ESC/POS
+
+function crearTicket(d) {
+
+  let a = [];
+
+  const cmd = (...xs) => a.push(...xs);
+
+  const text = s =>
+    a.push(
+      ...[...normal(s)].map(
+        c => c.charCodeAt(0)
+      )
+    );
+
+  const nl = () => cmd(10);
+
+  const ln = s => {
+    text(s);
+    nl();
+  };
+
+  const regla = (n = 1) => {
+    for (let i = 0; i < n; i++) {
+      ln("=".repeat(COLS));
+    }
+  };
+
+  const align = n =>
+    cmd(27, 97, n);
+
+  const bold = on =>
+    cmd(27, 69, on ? 1 : 0);
+
+  const size = n =>
+    cmd(29, 33, n);
+
+  const lines = (v, w = COLS) =>
+    wrap(v, w).forEach(ln);
+
+  // Reiniciar formato
+  cmd(27, 64);
+
+  // ENCABEZADO
+
+  align(1);
+  bold(true);
+  size(17);
+
+  ln("FRUTI VERDURA");
+  ln("A DOMICILIO");
+
+  size(0);
+  bold(false);
+
+  lines(d.fecha);
+
+  if (d.domicilio_emisor) {
+    lines(d.domicilio_emisor);
+  }
+
+  const ciudad = [
+    d.lugar_emisor,
+    d.cp_emisor
+      ? ("C.P. " + d.cp_emisor)
+      : ""
+  ].filter(Boolean).join(" ");
+
+  if (ciudad) {
+    lines(ciudad);
+  }
+
+  nl();
+
+  align(0);
+  regla();
+
+  // DATOS DEL CLIENTE
+
+  if (d.tipo === "remision") {
+
+    bold(true);
+    ln("DATOS DEL CLIENTE");
+    bold(false);
+
+    lines(d.cliente);
+
+    if (d.domicilio_entrega) {
+
+      ln("DOMICILIO DE ENTREGA");
+      lines(d.domicilio_entrega);
+
+    }
+
+    bold(true);
+    ln("DETALLE");
+    bold(false);
+
+    if (d.folio_remision) {
+      lines("Folio: " + d.folio_remision);
+    }
+
+    if (d.fecha_emision) {
+      lines("Expedicion: " + d.fecha_emision);
+    }
+
+    if (d.contacto) {
+      lines("Contacto: " + d.contacto);
+    }
+
+    if (d.telefono) {
+      lines("Telefono: " + d.telefono);
+    }
+
+  } else {
+
+    bold(true);
+    ln("PEDIDO");
+    bold(false);
+
+    lines(d.cliente?.toUpperCase());
+
+    bold(true);
+    ln("CONTACTO");
+    bold(false);
+
+    lines(
+      [d.contacto, d.telefono]
+        .filter(Boolean)
+        .join(" - ")
+    );
+
+    if (d.domicilio_entrega) {
+
+      bold(true);
+      ln("DOMICILIO DE ENTREGA");
+      bold(false);
+
+      lines(d.domicilio_entrega);
+
+    }
+  }
+
+  // PRODUCTOS
+
+  regla();
+
+  bold(true);
+  ln(pair("PRODUCTO", "VENTA"));
+  bold(false);
+
+  regla();
+
+  for (const p of (d.productos || [])) {
+
+    const precio =
+      normal(p.venta || "");
+
+    const nombre =
+      normal(p.nombre || "");
+
+    const disponible =
+      Math.max(
+        12,
+        COLS - precio.length - 1
+      );
+
+    const nombreLineas =
+      wrap(nombre, disponible);
+
+    ln(
+      pair(
+        nombreLineas[0],
+        precio
+      )
+    );
+
+    nombreLineas.slice(1).forEach(ln);
+
+    ln(normal(p.cantidad));
+
+    if (
+      d.tipo === "remision" &&
+      p.precio_unitario
+    ) {
+
+      lines(
+        "Precio unitario: " +
+        p.precio_unitario
+      );
+
+    }
+
+    ln("-".repeat(COLS));
+  }
+
+  // TOTALES
+
+  regla();
+
+  ln(
+    pair(
+      "Productos",
+      d.total_productos
+    )
+  );
+
+  ln(
+    pair(
+      "Subtotal",
+      d.subtotal
+    )
+  );
+
+  if (d.envio) {
+
+    ln(
+      pair(
+        "Envio",
+        d.envio
+      )
+    );
+
+  }
+
+  if (d.descuento) {
+
+    ln(
+      pair(
+        "Descuento",
+        d.descuento
+      )
+    );
+
+  }
+
+  regla();
+
+  bold(true);
+  size(0);
+
+  ln(
+    pair(
+      "TOTAL",
+      d.total
+    )
+  );
+
+  bold(false);
+
+  regla();
+
+  // INFORMACIÓN DE REMISIÓN
+
+  if (d.tipo === "remision") {
+
+    bold(true);
+    ln("PAGO");
+    bold(false);
+
+    if (d.estado_pago) {
+
+      lines(
+        "Estado: " +
+        d.estado_pago
+      );
+
+    }
+
+    if (d.medio_pago) {
+
+      lines(
+        "Medio: " +
+        d.medio_pago
+      );
+
+    }
+
+    if (d.cfdi_referencia) {
+
+      lines(
+        "CFDI: " +
+        d.cfdi_referencia
+      );
+
+    }
+
+    regla();
+
+    bold(true);
+    ln("RECEPCION DE MERCANCIA");
+    bold(false);
+
+    if (d.observaciones_remision) {
+
+      lines(
+        "Observaciones: " +
+        d.observaciones_remision
+      );
+
+    }
+
+    ln("Recibio: ____________________");
+    ln("Firma: _____________________");
+    ln("Fecha y hora: _____________");
+
+    regla();
+
+    align(1);
+
+    lines(
+      "Este documento no es un CFDI."
+    );
+
+    lines(
+      "La recepcion no acredita el pago."
+    );
+
+  } else {
+
+    align(1);
+
+    bold(true);
+    ln("GRACIAS POR TU COMPRA");
+    bold(false);
+
+    lines(
+      "Solo informativo. No es comprobante fiscal."
+    );
+
+  }
+
+  size(0);
+  align(0);
+
+  nl();
+  nl();
+
+  return new Uint8Array(a);
+}
+
+// COMUNICACIÓN CON APPS SCRIPT
+// Sin consultar Google Sheets ni Sat_Cola.
+
+function llamarPuente(accion, params = {}) {
+
+  return new Promise((resolve, reject) => {
+
+    if (
+      !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/
+        .test(URL_PUENTE)
+    ) {
+
+      reject(
+        Error(
+          "Falta poner la URL del Apps Script en el HTML."
+        )
+      );
+
+      return;
+    }
+
+    if (TOKEN_PUENTE.length < 32) {
+
+      reject(
+        Error(
+          "Falta configurar TOKEN_PUENTE."
+        )
+      );
+
+      return;
+    }
+
+    const cb =
+      "bluefy_cb_" +
+      Math.random().toString(36).slice(2);
+
+    let script =
+      document.createElement("script");
+
+    let done = false;
+
+    const limpiar = () => {
+
+      clearTimeout(timer);
+      delete window[cb];
+      script.remove();
+
+    };
+
+    const timer = setTimeout(() => {
+
+      if (!done) {
+
+        done = true;
+        limpiar();
+
+        reject(
+          Error("Tiempo de consulta agotado")
+        );
+
+      }
+
+    }, 18000);
+
+    window[cb] = respuesta => {
+
+      if (done) return;
+
+      done = true;
+      limpiar();
+
+      if (!respuesta?.ok) {
+
+        reject(
+          Error(
+            respuesta?.error ||
+            "Fallo del puente"
+          )
+        );
+
+      } else {
+
+        resolve(respuesta);
+
+      }
+
+    };
+
+    const qs = new URLSearchParams({
+      accion,
+      token: TOKEN_PUENTE,
+      callback: cb,
+      ...params
+    });
+
+    script.src =
+      URL_PUENTE + "?" + qs.toString();
+
+    script.onerror = () => {
+
+      if (!done) {
+
+        done = true;
+        limpiar();
+
+        reject(
+          Error(
+            "No se pudo cargar la respuesta de Apps Script"
+          )
+        );
+
+      }
+
+    };
+
+    document.head.appendChild(script);
+
+  });
+}
+
+// REVISAR TICKETS PENDIENTES
+
+async function revisar() {
+
+  if (
+    !conectado() ||
+    consultando ||
+    busy
+  ) return;
+
+  consultando = true;
+
+  botones();
+
+  let procesados = 0;
+
+  try {
+
+    // Máximo 10 trabajos por ciclo.
+    // No consulta Google Sheets.
+
+    while (
+      conectado() &&
+      procesados < 10
+    ) {
+
+      const r =
+        await llamarPuente("tomar");
+
+      if (!r.trabajo) {
+
+        estado(
+          procesados
+            ? "Se enviaron " +
+              procesados +
+              " ticket(s). No quedan pendientes.\nSiguiente revisión en 60 segundos."
+            : "Conectada. No hay tickets pendientes.\nPróxima revisión en 60 segundos."
+        );
+
+        break;
+      }
+
+      const job = r.trabajo;
+
+      ultimoId = job.id;
+      busy = true;
+
+      botones();
+
+      try {
+
+        const bytes =
+          crearTicket(job.datos);
+
+        estado(
+          "Imprimiendo " +
+          (job.datos.cliente || "ticket") +
+          "\n" +
+          bytes.length +
+          " bytes..."
+        );
+
+        canceled = false;
+
+        await enviar(bytes);
+
+        await llamarPuente(
+          "confirmar",
+          { id: job.id }
+        );
+
+        procesados++;
+
+        estado(
+          "Trabajo " +
+          job.id.slice(0, 8) +
+          " enviado y confirmado."
+        );
+
+        await dormir(600);
+
+      } catch (err) {
+
+        ultimoError =
+          String(err.message || err);
+
+        estado(
+          "ERROR: " +
+          ultimoError +
+          "\nNo se reimprime automáticamente. Detenido para evitar problemas de papel."
+        );
+
+        try {
+
+          await llamarPuente(
+            "error",
+            {
+              id: job.id,
+              mensaje: ultimoError
+            }
+          );
+
+        } catch (_) {}
+
+        break;
+
+      } finally {
+
+        busy = false;
+        botones();
+
+      }
+    }
+
+    if (procesados === 10) {
+
+      estado(
+        "Se enviaron 10 tickets. Los demás se revisarán en el siguiente ciclo."
+      );
+
+    }
+
+  } catch (err) {
+
+    estado(
+      "No se pudo consultar la cola: " +
+      (err.message || err)
+    );
+
+  } finally {
+
+    consultando = false;
+    botones();
+
+  }
+}
+
+// GUARDAR CONFIGURACIÓN
+
+$("guardarConfig").onclick = () => {
+
+  const url =
+    $("urlPuente").value.trim();
+
+  const token =
+    $("tokenPuente").value.trim();
+
+  if (
+    !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/
+      .test(url)
+  ) {
+
+    estado(
+      "La URL debe terminar en /exec y ser de Apps Script."
+    );
+
+    return;
+  }
+
+  if (token.length < 32) {
+
+    estado(
+      "Usa un token privado de al menos 32 caracteres."
+    );
+
+    return;
+  }
+
+  URL_PUENTE = url;
+  TOKEN_PUENTE = token;
+
+  localStorage.setItem(
+    "bluefy_url",
+    url
+  );
+
+  localStorage.setItem(
+    "bluefy_token",
+    token
+  );
+
+  estado(
+    "Configuracion guardada localmente. Conecta la MP210."
+  );
+
+};
+
+// BOTÓN CONECTAR
+
+$("conectar").onclick = async () => {
 
   if (busy) return;
 
   busy = true;
-  cancelled = false;
+  botones();
 
-  controls();
+  let ok = false;
 
   try {
 
-    const bytes =
-      which === "test"
-        ? testBytes
-        : ticketBytes();
+    await conectar();
+    ok = true;
 
-    const blocks =
-      await writeOnce(bytes);
+  } catch (e) {
 
-    status(
-      "Envío terminado.\n" +
-      "Trabajo: " + which + "\n" +
-      "Bytes: " + bytes.length + "\n" +
-      "Bloques: " + blocks + "\n\n" +
-      "¿Se imprimió completo y se detuvo?"
-    );
-
-  } catch (error) {
-
-    status(
-      "ERROR:\n" +
-      error.message +
-      "\n\nSi sigue saliendo papel, apaga la impresora."
+    estado(
+      "Error: " + e.message
     );
 
   } finally {
 
     busy = false;
-    controls();
+    botones();
 
   }
-}
 
-// Botón conectar
-$("connect").addEventListener(
-  "click",
-  async () => {
-
-    if (busy) return;
-
-    busy = true;
-    controls();
-
-    status("Conectando...");
-
-    try {
-
-      await connect();
-
-    } catch (error) {
-
-      status(
-        "Error de conexión:\n" +
-        error.message
-      );
-
-    } finally {
-
-      busy = false;
-      controls();
-
-    }
+  if (ok) {
+    await revisar();
   }
-);
 
-// Botón TEST
-$("test").addEventListener(
-  "click",
-  () => runJob("test")
-);
+};
 
-// Botón ticket
-$("ticket").addEventListener(
-  "click",
-  () => runJob("ticket")
-);
+// BOTÓN TEST
 
-// Detener y desconectar
-$("stop").addEventListener(
-  "click",
-  () => {
+$("test").onclick = async () => {
 
-    cancelled = true;
+  if (busy) return;
 
-    status(
-      "Envíos pendientes cancelados.\n" +
-      "Desconectando impresora.\n" +
-      "Si sigue imprimiendo, apágala."
+  busy = true;
+  canceled = false;
+
+  botones();
+
+  try {
+
+    await enviar(
+      new Uint8Array([
+        27, 64,
+        84, 69, 83, 84,
+        10, 10, 10
+      ])
     );
 
-    try {
+    estado(
+      "TEST enviado una vez"
+    );
 
-      if (
-        device &&
-        device.gatt &&
-        device.gatt.connected
-      ) {
-        device.gatt.disconnect();
-      }
+  } catch (e) {
 
-    } catch (error) {
-      console.error(error);
-    }
+    estado(
+      "ERROR TEST: " +
+      e.message
+    );
 
-    tx = null;
-    controls();
+  } finally {
+
+    busy = false;
+    botones();
+
   }
-);
 
-controls();
+};
+
+// REVISIÓN MANUAL
+
+$("buscar").onclick = () => revisar();
+
+// DESCONECTAR
+
+$("detener").onclick = () => {
+
+  canceled = true;
+
+  if (
+    dispositivo?.gatt?.connected
+  ) {
+
+    dispositivo.gatt.disconnect();
+
+  }
+
+  tx = null;
+
+  estado(
+    "Desconectada. Apaga la impresora si sigue saliendo papel."
+  );
+
+  botones();
+
+};
+
+// REVISIÓN AUTOMÁTICA CADA 60 SEGUNDOS
+
+setInterval(() => {
+
+  if (conectado()) {
+    revisar();
+  }
+
+}, INTERVALO_MS);
+
+// RECUPERAR CONFIGURACIÓN GUARDADA
+
+$("urlPuente").value = URL_PUENTE;
+
+$("tokenPuente").value = TOKEN_PUENTE;
+
+if (
+  URL_PUENTE &&
+  TOKEN_PUENTE
+) {
+
+  estado(
+    "Puente configurado. Conecta la MP210."
+  );
+
+}
+
+botones();
 
 </script>
 
