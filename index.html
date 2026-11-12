@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prueba de impresión MP210</title>
+<style>
+:root{--bg:#f7f7f5;--fg:#1d1f1e;--mut:#5f6663;--line:#d4d8d5;--ac:#1f5f4a;--acfg:#fff;--err:#a3261c}
+@media (prefers-color-scheme:dark){:root{--bg:#161817;--fg:#ecefed;--mut:#9aa39f;--line:#333937;--ac:#5fc4a0;--acfg:#0d1a15;--err:#ff8a7e}}
+*{box-sizing:border-box}
+body{margin:0;padding:max(16px,env(safe-area-inset-top)) 16px max(24px,env(safe-area-inset-bottom));background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif;max-width:560px;margin-inline:auto}
+h1{font-size:1.35rem;margin:.5rem 0 .25rem}
+p{margin:.25rem 0 1rem;color:var(--mut)}
+button{font:inherit;width:100%;padding:14px;border-radius:10px;border:1px solid var(--ac);background:var(--ac);color:var(--acfg);margin:.4rem 0;cursor:pointer}
+button.sec{background:transparent;color:var(--ac)}
+button:disabled{opacity:.5}
+button:focus-visible{outline:3px solid var(--fg);outline-offset:2px}
+.preview{width:100%;max-width:384px;border:1px solid var(--line);background:#fff;display:block;margin:1rem auto;image-rendering:pixelated}
+#estado{min-height:3em;white-space:pre-wrap;font-size:.95rem}
+#estado.error{color:var(--err)}
+details{margin-top:1rem;color:var(--mut)}
+label{display:block;margin:.5rem 0}
+input{font:inherit;width:6em;padding:6px}
+</style>
+</head>
+<body>
+<h1>Prueba de impresión MP210</h1>
+<p>Imprime una guía de ancho del 1 al 10 directamente por Bluetooth, sin Print Fast. Ábrela en Bluefy.</p>
+
+<canvas id="vista" class="preview" width="384" height="10"></canvas>
+<button id="imprimir" type="button">Conectar e imprimir prueba</button>
+<button id="desconectar" class="sec" type="button" disabled>Desconectar</button>
+<div id="estado" role="status" aria-live="polite"></div>
+
+<details>
+<summary>Ajustes de envío</summary>
+<label>Bytes por bloque <input id="tam" type="number" value="100" min="20" max="180"></label>
+<label>Pausa entre bloques (ms) <input id="pausa" type="number" value="25" min="0" max="200"></label>
+<label>Filas por franja <input id="franja" type="number" value="64" min="8" max="255"></label>
+</details>
+
+<script>
+"use strict";
+const SERVICIO = "49535343-fe7d-4ae5-8fa9-9fafd205e455";
+const CARACT = "49535343-8841-43f4-a8d4-ecbe34729bb3";
+const ANCHO = 384;
+const $ = id => document.getElementById(id);
+let dispositivo = null, caract = null;
+
+function decir(texto, error){
+  const e = $("estado");
+  e.textContent = texto;
+  e.className = error ? "error" : "";
+}
+
+// Dibuja la prueba: borde, regla 1-10 al ancho completo, texto y bloque negro.
+function dibujarPrueba(){
+  const c = $("vista"), g = c.getContext("2d");
+  const alto = 330;
+  c.height = alto;
+  g.fillStyle = "#fff"; g.fillRect(0, 0, ANCHO, alto);
+  g.fillStyle = "#000"; g.strokeStyle = "#000";
+  g.lineWidth = 2; g.strokeRect(1, 1, ANCHO - 2, alto - 2);
+  g.font = "bold 26px sans-serif"; g.textAlign = "center";
+  g.fillText("PRUEBA 384 px", ANCHO / 2, 40);
+  g.font = "22px sans-serif";
+  g.fillText("Si el 10 sale completo,", ANCHO / 2, 72);
+  g.fillText("la escala es 1:1", ANCHO / 2, 98);
+  const y = 150;
+  g.lineWidth = 3;
+  g.beginPath(); g.moveTo(2, y); g.lineTo(ANCHO - 2, y); g.stroke();
+  g.font = "bold 20px sans-serif";
+  for (let n = 1; n <= 10; n++){
+    const x = 2 + (n - 1) * (ANCHO - 4) / 9;
+    g.beginPath(); g.moveTo(x, y - 14); g.lineTo(x, y + 14); g.stroke();
+    const w = g.measureText(String(n)).width;
+    const xt = Math.max(2, Math.min(ANCHO - 2 - w, x - w / 2));
+    g.textAlign = "left";
+    g.fillText(String(n), xt, y + 40);
+  }
+  g.textAlign = "center";
+  g.font = "25px sans-serif";
+  g.fillText("Texto de 25 px: Cebolla 1.500 kg", ANCHO / 2, 235);
+  g.fillRect(20, 255, ANCHO - 40, 50);
+  return c;
+}
+
+// Convierte el lienzo a bytes de 1 bit por pixel, 48 bytes por fila (negro = 1).
+function aRaster(c){
+  const g = c.getContext("2d");
+  const datos = g.getImageData(0, 0, ANCHO, c.height).data;
+  const bpf = ANCHO / 8, filas = c.height, out = new Uint8Array(bpf * filas);
+  for (let y = 0; y < filas; y++)
+    for (let x = 0; x < ANCHO; x++){
+      const i = (y * ANCHO + x) * 4;
+      const luz = 0.299 * datos[i] + 0.587 * datos[i + 1] + 0.114 * datos[i + 2];
+      if (luz < 160) out[y * bpf + (x >> 3)] |= 0x80 >> (x & 7);
+    }
+  return {bytes: out, bpf, filas};
+}
+
+// Une comandos ESC/POS: iniciar, franjas GS v 0, avance de papel.
+function armarComandos(r, filasFranja){
+  const partes = [new Uint8Array([0x1B, 0x40])];
+  for (let y = 0; y < r.filas; y += filasFranja){
+    const n = Math.min(filasFranja, r.filas - y);
+    partes.push(new Uint8Array([0x1D, 0x76, 0x30, 0x00, r.bpf & 255, r.bpf >> 8, n & 255, n >> 8]));
+    partes.push(r.bytes.subarray(y * r.bpf, (y + n) * r.bpf));
+  }
+  partes.push(new Uint8Array([0x0A, 0x0A, 0x0A]));
+  const total = partes.reduce((s, p) => s + p.length, 0);
+  const todo = new Uint8Array(total);
+  let pos = 0;
+  for (const p of partes){ todo.set(p, pos); pos += p.length; }
+  return todo;
+}
+
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+
+async function conectar(){
+  if (!navigator.bluetooth)
+    throw new Error("Este navegador no tiene Web Bluetooth. Abre esta página en Bluefy.");
+  if (dispositivo && dispositivo.gatt.connected && caract) return;
+  if (!dispositivo){
+    dispositivo = await navigator.bluetooth.requestDevice({
+      filters: [{namePrefix: "MP210"}],
+      optionalServices: [SERVICIO]
+    });
+    dispositivo.addEventListener("gattserverdisconnected", () => {
+      caract = null; $("desconectar").disabled = true;
+      decir("La impresora se desconectó.");
+    });
+  }
+  const servidor = await dispositivo.gatt.connect();
+  const servicio = await servidor.getPrimaryService(SERVICIO);
+  caract = await servicio.getCharacteristic(CARACT);
+  $("desconectar").disabled = false;
+}
+
+async function enviar(bytes){
+  const tam = Math.max(20, Math.min(180, +$("tam").value || 100));
+  const pausa = Math.max(0, +$("pausa").value || 0);
+  for (let i = 0; i < bytes.length; i += tam){
+    const bloque = bytes.subarray(i, i + tam);
+    if (caract.writeValueWithoutResponse) await caract.writeValueWithoutResponse(bloque);
+    else await caract.writeValue(bloque);
+    if (pausa) await dormir(pausa);
+    if ((i / tam) % 20 === 0)
+      decir("Enviando… " + Math.round(100 * i / bytes.length) + " %");
+  }
+}
+
+$("imprimir").addEventListener("click", async () => {
+  const boton = $("imprimir");
+  boton.disabled = true;
+  try{
+    decir("Conectando con la MP210…");
+    await conectar();
+    const r = aRaster(dibujarPrueba());
+    const franja = Math.max(8, Math.min(255, +$("franja").value || 64));
+    await enviar(armarComandos(r, franja));
+    decir("Listo. Revisa que el 10 salga completo, sin cortarse.");
+  } catch (e){
+    decir("No se pudo imprimir: " + (e && e.message ? e.message : e), true);
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+$("desconectar").addEventListener("click", () => {
+  if (dispositivo && dispositivo.gatt.connected) dispositivo.gatt.disconnect();
+});
+
+dibujarPrueba();
+</script>
+</body>
+</html>
