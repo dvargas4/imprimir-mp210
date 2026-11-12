@@ -1,143 +1,103 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Bluefy | MP210</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Fruti Verdura | Impresora MP210</title>
 
 <style>
-:root{
-  --bg:#f7f8f6;
-  --fg:#202824;
-  --green:#246a50;
-  --line:#d7dfd9;
+:root {
+  --verde: #246a50;
+  --fondo: #f7f8f6;
+  --texto: #202824;
+  --borde: #d7dfd9;
 }
 
-*{
-  box-sizing:border-box;
+* {
+  box-sizing: border-box;
 }
 
-body{
-  font:16px/1.5 -apple-system,system-ui,sans-serif;
-  margin:0 auto;
-  padding:24px 16px;
-  max-width:540px;
-  background:var(--bg);
-  color:var(--fg);
+body {
+  font-family: -apple-system, system-ui, sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+  max-width: 540px;
+  margin: auto;
+  padding: 24px 16px;
 }
 
-.card{
-  padding:18px;
-  background:white;
-  border:1px solid var(--line);
-  border-radius:14px;
-  margin:14px 0;
+h1 {
+  font-size: 25px;
+  text-align: center;
 }
 
-h1{
-  font-size:25px;
+p {
+  color: #57665e;
+  line-height: 1.5;
 }
 
-p{
-  color:#57665e;
+.card {
+  background: white;
+  border: 1px solid var(--borde);
+  border-radius: 14px;
+  padding: 18px;
+  margin: 14px 0;
 }
 
-button{
-  display:block;
-  width:100%;
-  padding:15px;
-  margin:10px 0;
-  border:0;
-  border-radius:9px;
-  background:var(--green);
-  color:white;
-  font-size:16px;
-  font-weight:600;
+button {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin: 12px 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--verde);
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
 }
 
-button:disabled{
-  opacity:.4;
+button.sec {
+  background: white;
+  color: var(--verde);
+  border: 1px solid var(--verde);
 }
 
-button.sec{
-  background:white;
-  color:var(--green);
-  border:1px solid var(--green);
+button:disabled {
+  opacity: 0.4;
 }
 
-code{
-  overflow-wrap:anywhere;
+#estado {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
-#estado{
-  white-space:pre-wrap;
-  font:14px/1.6 system-ui;
-  min-height:4em;
-}
-
-small{
-  color:#5b6960;
-}
 </style>
 </head>
 
 <body>
 
-<h1>Impresión MP210</h1>
+<h1>FRUTI VERDURA A DOMICILIO</h1>
 
-<p>
-Recibe tickets automáticamente desde la app de verduras,
-sin PDF, PNG ni Print Fast.
+<p style="text-align:center">
+Sistema de impresión Bluetooth MP210
 </p>
 
 <div class="card">
 
-  <b>Configuración inicial del puente</b>
-
-  <p>
-    Introduce la dirección del Apps Script y el token
-    privado una sola vez en este dispositivo.
-    No los publiques dentro del HTML.
-  </p>
-
-  <label>URL del Apps Script</label>
-
-  <input
-    id="urlPuente"
-    type="url"
-    placeholder="https://script.google.com/macros/s/.../exec"
-    autocapitalize="off"
-    autocomplete="off"
-    style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #d7dfd9;border-radius:8px"
-  >
-
-  <label>Token privado</label>
-
-  <input
-    id="tokenPuente"
-    type="password"
-    placeholder="Token de al menos 32 caracteres"
-    autocomplete="off"
-    style="width:100%;padding:12px;margin:6px 0 12px;border:1px solid #d7dfd9;border-radius:8px"
-  >
-
-  <button id="guardarConfig" class="sec">
-    Guardar configuración en este dispositivo
-  </button>
-
-</div>
-
-<div class="card">
-
-  <b>Impresora</b>
+  <h3>Impresora</h3>
 
   <p id="conexion">
     Desconectada
   </p>
 
   <button id="conectar">
-    Conectar MP210
+    Conectar impresora MP210
   </button>
 
   <button id="test" class="sec" disabled>
@@ -145,7 +105,7 @@ sin PDF, PNG ni Print Fast.
   </button>
 
   <button id="buscar" class="sec" disabled>
-    Revisar pendientes ahora
+    Revisar tickets pendientes
   </button>
 
   <button id="detener" class="sec" disabled>
@@ -156,17 +116,21 @@ sin PDF, PNG ni Print Fast.
 
 <div class="card">
 
-  <b>Recepción automática</b>
+  <h3>Impresión automática</h3>
 
   <p>
-    Revisión cada <b>60 segundos</b> mientras
-    Bluefy esté abierto y la impresora conectada.
-    No se consulta ninguna hoja de Google Sheets
-    ni Sat_Cola.
+    Los tickets de la aplicación de verduras
+    se recibirán mediante Google Apps Script.
+  </p>
+
+  <p>
+    Revisión automática cada 60 segundos,
+    mientras Bluefy esté abierto y
+    la impresora conectada.
   </p>
 
   <div id="estado">
-    Configura el enlace y token en los campos superiores.
+    Esperando conexión...
   </div>
 
 </div>
@@ -174,16 +138,24 @@ sin PDF, PNG ni Print Fast.
 <script>
 "use strict";
 
-// CONFIGURACIÓN LOCAL
-// No escribir credenciales en código público.
+/* =========================================
+   CONFIGURACIÓN DEL PUENTE
+   ========================================= */
 
-let URL_PUENTE =
-  localStorage.getItem("bluefy_url") || "";
+// URL DE GOOGLE APPS SCRIPT
 
-let TOKEN_PUENTE =
-  localStorage.getItem("bluefy_token") || "";
+const URL_PUENTE =
+  "https://script.google.com/macros/s/AKfycbztZg15XA0sV0EGMhz5CxzuWkBPCAgraXOBbjpG0G9fmkxSOwsXr2HKWLgub3_X3hK6OA/exec";
 
-// UUID Bluetooth de la MP210
+// COLOCA AQUÍ TU TOKEN PRIVADO
+// Debe ser exactamente igual al de Apps Script.
+
+const TOKEN_PUENTE =
+  "1234";
+
+/* =========================================
+   CONFIGURACIÓN BLUETOOTH MP210
+   ========================================= */
 
 const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -195,21 +167,22 @@ const INTERVALO_MS = 60000;
 
 const COLS = 32;
 
-const $ = id => document.getElementById(id);
+const $ = id =>
+  document.getElementById(id);
 
 let dispositivo = null;
 let tx = null;
+
 let busy = false;
 let canceled = false;
 let consultando = false;
 
-let ultimoError = "";
-let ultimoId = "";
+/* =========================================
+   ESTADO
+   ========================================= */
 
-// ESTADO
-
-function estado(s) {
-  $("estado").textContent = s;
+function estado(texto) {
+  $("estado").textContent = texto;
 }
 
 function conectado() {
@@ -239,24 +212,33 @@ function botones() {
 }
 
 const dormir = ms =>
-  new Promise(r => setTimeout(r, ms));
+  new Promise(resolve =>
+    setTimeout(resolve, ms)
+  );
 
-// CONECTAR IMPRESORA
+/* =========================================
+   CONEXIÓN BLUETOOTH
+   ========================================= */
 
 async function conectar() {
 
   if (!navigator.bluetooth) {
+
     throw Error(
-      "Abre esta pagina HTTPS desde Bluefy."
+      "Abre esta página HTTPS desde Bluefy."
     );
+
   }
 
   dispositivo =
     await navigator.bluetooth.requestDevice({
+
       filters: [
         { namePrefix: "MP210" }
       ],
+
       optionalServices: [SERVICIO]
+
     });
 
   dispositivo.addEventListener(
@@ -267,7 +249,7 @@ async function conectar() {
       canceled = true;
 
       estado(
-        "Desconectada. Reabre la conexión para recibir nuevos trabajos."
+        "Impresora desconectada."
       );
 
       botones();
@@ -288,26 +270,30 @@ async function conectar() {
     !tx.properties.write &&
     !tx.properties.writeWithoutResponse
   ) {
+
     throw Error(
-      "Caracteristica sin escritura."
+      "La característica Bluetooth no permite escritura."
     );
+
   }
 
   botones();
 
   estado(
-    "Bluetooth conectado. Revisando trabajos..."
+    "Impresora conectada correctamente."
   );
 
-  await revisar();
 }
 
-// ENVÍO BLUETOOTH
+/* =========================================
+   ENVÍO BLUETOOTH
+   ========================================= */
 
 async function enviar(bytes) {
 
-  // Mismo método que funcionó en la prueba:
-  // 20 bytes por bloque, pausa de 100 ms.
+  // Mismo envío que funcionó:
+  // Bloques de 20 bytes
+  // Pausa de 100 milisegundos
 
   for (
     let i = 0;
@@ -316,246 +302,299 @@ async function enviar(bytes) {
   ) {
 
     if (canceled) {
+
       throw Error(
-        "Envio cancelado; es posible que el ticket este incompleto."
+        "Envío cancelado."
       );
+
     }
 
     if (!conectado()) {
+
       throw Error(
         "Bluetooth desconectado."
       );
+
     }
 
-    const part =
+    const bloque =
       bytes.slice(i, i + 20);
 
     if (tx.properties.write) {
 
-      await tx.writeValueWithResponse(part);
+      await tx.writeValueWithResponse(
+        bloque
+      );
 
     } else {
 
-      await tx.writeValueWithoutResponse(part);
+      await tx.writeValueWithoutResponse(
+        bloque
+      );
 
     }
 
     await dormir(100);
+
   }
+
 }
 
-// FORMATO DE TEXTO
+/* =========================================
+   FORMATO DE TEXTO
+   ========================================= */
 
-function normal(s) {
+function normal(texto) {
 
-  return String(s ?? "")
+  return String(texto ?? "")
+
     .replace(/ñ/g, "n")
     .replace(/Ñ/g, "N")
+
     .normalize("NFD")
+
     .replace(/[\u0300-\u036f]/g, "")
+
     .replace(/[\u2013\u2014]/g, "-")
+
     .replace(/[\u2018\u2019]/g, "'")
+
     .replace(/[^\x20-\x7e]/g, " ");
+
 }
 
-function centro(s, w = COLS) {
-
-  s = normal(s);
-
-  return s.length >= w
-    ? s
-    : s
-        .padStart(Math.floor((w + s.length) / 2))
-        .padEnd(w);
-}
-
-function pair(a, b, w = COLS) {
+function pair(a, b, ancho = COLS) {
 
   a = normal(a);
   b = normal(b);
 
-  if (a.length + b.length + 1 > w) {
-    return a + "\n" + b.padStart(w);
+  if (a.length + b.length + 1 > ancho) {
+
+    return a + "\n" +
+      b.padStart(ancho);
+
   }
 
   return a +
-    " ".repeat(w - a.length - b.length) +
+    " ".repeat(
+      ancho - a.length - b.length
+    ) +
     b;
+
 }
 
-function wrap(s, w = COLS) {
+function wrap(texto, ancho = COLS) {
 
-  const words =
-    normal(s).split(/\s+/).filter(Boolean);
+  const palabras =
+    normal(texto)
+      .split(/\s+/)
+      .filter(Boolean);
 
-  let lines = [];
-  let line = "";
+  let resultado = [];
+  let linea = "";
 
-  for (const word0 of words) {
+  for (const palabraOriginal of palabras) {
 
-    let word = word0;
+    let palabra = palabraOriginal;
 
-    while (word.length > w) {
+    while (palabra.length > ancho) {
 
-      if (line) {
-        lines.push(line);
-        line = "";
+      if (linea) {
+        resultado.push(linea);
+        linea = "";
       }
 
-      lines.push(word.slice(0, w));
-      word = word.slice(w);
+      resultado.push(
+        palabra.slice(0, ancho)
+      );
+
+      palabra = palabra.slice(ancho);
     }
 
-    if (!word) continue;
+    if (!palabra) continue;
 
-    const next =
-      line ? line + " " + word : word;
+    const siguiente =
+      linea
+        ? linea + " " + palabra
+        : palabra;
 
-    if (next.length > w) {
+    if (siguiente.length > ancho) {
 
-      if (line) lines.push(line);
+      if (linea) resultado.push(linea);
 
-      line = word;
+      linea = palabra;
 
     } else {
 
-      line = next;
+      linea = siguiente;
 
     }
+
   }
 
-  if (line) lines.push(line);
+  if (linea) resultado.push(linea);
 
-  return lines.length ? lines : [""];
+  return resultado.length
+    ? resultado
+    : [""];
+
 }
 
-// GENERAR TICKET ESC/POS
+/* =========================================
+   TICKET NATIVO ESC/POS
+   ========================================= */
 
 function crearTicket(d) {
 
-  let a = [];
+  let bytes = [];
 
-  const cmd = (...xs) => a.push(...xs);
+  const cmd = (...valores) =>
+    bytes.push(...valores);
 
-  const text = s =>
-    a.push(
+  const texto = s =>
+    bytes.push(
       ...[...normal(s)].map(
         c => c.charCodeAt(0)
       )
     );
 
-  const nl = () => cmd(10);
+  const salto = () =>
+    cmd(10);
 
-  const ln = s => {
-    text(s);
-    nl();
+  const linea = s => {
+    texto(s);
+    salto();
   };
 
-  const regla = (n = 1) => {
+  const separador = (n = 1) => {
+
     for (let i = 0; i < n; i++) {
-      ln("=".repeat(COLS));
+      linea("=".repeat(COLS));
     }
+
   };
 
-  const align = n =>
+  const alinear = n =>
     cmd(27, 97, n);
 
-  const bold = on =>
-    cmd(27, 69, on ? 1 : 0);
+  const negrita = activo =>
+    cmd(27, 69, activo ? 1 : 0);
 
-  const size = n =>
+  const tamano = n =>
     cmd(29, 33, n);
 
-  const lines = (v, w = COLS) =>
-    wrap(v, w).forEach(ln);
+  const escribir = (
+    valor,
+    ancho = COLS
+  ) => {
 
-  // Reiniciar formato
+    wrap(valor, ancho).forEach(linea);
+
+  };
+
+  // INICIAR IMPRESORA
+
   cmd(27, 64);
 
   // ENCABEZADO
 
-  align(1);
-  bold(true);
-  size(17);
+  alinear(1);
+  negrita(true);
+  tamano(17);
 
-  ln("FRUTI VERDURA");
-  ln("A DOMICILIO");
+  linea("FRUTI VERDURA");
+  linea("A DOMICILIO");
 
-  size(0);
-  bold(false);
+  tamano(0);
+  negrita(false);
 
-  lines(d.fecha);
+  if (d.fecha) {
+    escribir(d.fecha);
+  }
 
   if (d.domicilio_emisor) {
-    lines(d.domicilio_emisor);
+    escribir(d.domicilio_emisor);
   }
 
   const ciudad = [
+
     d.lugar_emisor,
+
     d.cp_emisor
-      ? ("C.P. " + d.cp_emisor)
+      ? "C.P. " + d.cp_emisor
       : ""
+
   ].filter(Boolean).join(" ");
 
   if (ciudad) {
-    lines(ciudad);
+    escribir(ciudad);
   }
 
-  nl();
+  salto();
 
-  align(0);
-  regla();
+  alinear(0);
+  separador();
 
   // DATOS DEL CLIENTE
 
   if (d.tipo === "remision") {
 
-    bold(true);
-    ln("DATOS DEL CLIENTE");
-    bold(false);
+    negrita(true);
+    linea("DATOS DEL CLIENTE");
+    negrita(false);
 
-    lines(d.cliente);
+    escribir(d.cliente);
 
     if (d.domicilio_entrega) {
 
-      ln("DOMICILIO DE ENTREGA");
-      lines(d.domicilio_entrega);
+      linea("DOMICILIO DE ENTREGA");
+      escribir(d.domicilio_entrega);
 
     }
 
-    bold(true);
-    ln("DETALLE");
-    bold(false);
+    negrita(true);
+    linea("DETALLE");
+    negrita(false);
 
     if (d.folio_remision) {
-      lines("Folio: " + d.folio_remision);
+      escribir(
+        "Folio: " + d.folio_remision
+      );
     }
 
     if (d.fecha_emision) {
-      lines("Expedicion: " + d.fecha_emision);
+      escribir(
+        "Expedicion: " + d.fecha_emision
+      );
     }
 
     if (d.contacto) {
-      lines("Contacto: " + d.contacto);
+      escribir(
+        "Contacto: " + d.contacto
+      );
     }
 
     if (d.telefono) {
-      lines("Telefono: " + d.telefono);
+      escribir(
+        "Telefono: " + d.telefono
+      );
     }
 
   } else {
 
-    bold(true);
-    ln("PEDIDO");
-    bold(false);
+    negrita(true);
+    linea("PEDIDO");
+    negrita(false);
 
-    lines(d.cliente?.toUpperCase());
+    escribir(
+      String(d.cliente || "").toUpperCase()
+    );
 
-    bold(true);
-    ln("CONTACTO");
-    bold(false);
+    negrita(true);
+    linea("CONTACTO");
+    negrita(false);
 
-    lines(
+    escribir(
       [d.contacto, d.telefono]
         .filter(Boolean)
         .join(" - ")
@@ -563,24 +602,29 @@ function crearTicket(d) {
 
     if (d.domicilio_entrega) {
 
-      bold(true);
-      ln("DOMICILIO DE ENTREGA");
-      bold(false);
+      negrita(true);
+      linea("DOMICILIO DE ENTREGA");
+      negrita(false);
 
-      lines(d.domicilio_entrega);
+      escribir(d.domicilio_entrega);
 
     }
+
   }
 
   // PRODUCTOS
 
-  regla();
+  separador();
 
-  bold(true);
-  ln(pair("PRODUCTO", "VENTA"));
-  bold(false);
+  negrita(true);
 
-  regla();
+  linea(
+    pair("PRODUCTO", "VENTA")
+  );
+
+  negrita(false);
+
+  separador();
 
   for (const p of (d.productos || [])) {
 
@@ -596,47 +640,50 @@ function crearTicket(d) {
         COLS - precio.length - 1
       );
 
-    const nombreLineas =
+    const nombres =
       wrap(nombre, disponible);
 
-    ln(
+    linea(
       pair(
-        nombreLineas[0],
+        nombres[0],
         precio
       )
     );
 
-    nombreLineas.slice(1).forEach(ln);
+    nombres.slice(1).forEach(linea);
 
-    ln(normal(p.cantidad));
+    linea(
+      normal(p.cantidad)
+    );
 
     if (
       d.tipo === "remision" &&
       p.precio_unitario
     ) {
 
-      lines(
+      escribir(
         "Precio unitario: " +
         p.precio_unitario
       );
 
     }
 
-    ln("-".repeat(COLS));
+    linea("-".repeat(COLS));
+
   }
 
   // TOTALES
 
-  regla();
+  separador();
 
-  ln(
+  linea(
     pair(
       "Productos",
       d.total_productos
     )
   );
 
-  ln(
+  linea(
     pair(
       "Subtotal",
       d.subtotal
@@ -645,18 +692,15 @@ function crearTicket(d) {
 
   if (d.envio) {
 
-    ln(
-      pair(
-        "Envio",
-        d.envio
-      )
+    linea(
+      pair("Envio", d.envio)
     );
 
   }
 
   if (d.descuento) {
 
-    ln(
+    linea(
       pair(
         "Descuento",
         d.descuento
@@ -665,232 +709,252 @@ function crearTicket(d) {
 
   }
 
-  regla();
+  separador();
 
-  bold(true);
-  size(0);
+  negrita(true);
 
-  ln(
+  linea(
     pair(
       "TOTAL",
       d.total
     )
   );
 
-  bold(false);
+  negrita(false);
 
-  regla();
+  separador();
 
-  // INFORMACIÓN DE REMISIÓN
+  // REMISIÓN CON FACTURA
 
   if (d.tipo === "remision") {
 
-    bold(true);
-    ln("PAGO");
-    bold(false);
+    negrita(true);
+    linea("PAGO");
+    negrita(false);
 
     if (d.estado_pago) {
 
-      lines(
-        "Estado: " +
-        d.estado_pago
+      escribir(
+        "Estado: " + d.estado_pago
       );
 
     }
 
     if (d.medio_pago) {
 
-      lines(
-        "Medio: " +
-        d.medio_pago
+      escribir(
+        "Medio: " + d.medio_pago
       );
 
     }
 
     if (d.cfdi_referencia) {
 
-      lines(
-        "CFDI: " +
-        d.cfdi_referencia
+      escribir(
+        "CFDI: " + d.cfdi_referencia
       );
 
     }
 
-    regla();
+    separador();
 
-    bold(true);
-    ln("RECEPCION DE MERCANCIA");
-    bold(false);
+    negrita(true);
+    linea("RECEPCION DE MERCANCIA");
+    negrita(false);
 
     if (d.observaciones_remision) {
 
-      lines(
+      escribir(
         "Observaciones: " +
         d.observaciones_remision
       );
 
     }
 
-    ln("Recibio: ____________________");
-    ln("Firma: _____________________");
-    ln("Fecha y hora: _____________");
+    linea("Recibio: ____________________");
+    linea("Firma: _____________________");
+    linea("Fecha y hora: _____________");
 
-    regla();
+    separador();
 
-    align(1);
+    alinear(1);
 
-    lines(
+    escribir(
       "Este documento no es un CFDI."
     );
 
-    lines(
+    escribir(
       "La recepcion no acredita el pago."
     );
 
   } else {
 
-    align(1);
+    alinear(1);
 
-    bold(true);
-    ln("GRACIAS POR TU COMPRA");
-    bold(false);
+    negrita(true);
+    linea("GRACIAS POR TU COMPRA");
+    negrita(false);
 
-    lines(
+    escribir(
       "Solo informativo. No es comprobante fiscal."
     );
 
   }
 
-  size(0);
-  align(0);
+  tamano(0);
+  alinear(0);
 
-  nl();
-  nl();
+  salto();
+  salto();
 
-  return new Uint8Array(a);
+  return new Uint8Array(bytes);
+
 }
 
-// COMUNICACIÓN CON APPS SCRIPT
-// Sin consultar Google Sheets ni Sat_Cola.
+/* =========================================
+   CONEXIÓN CON GOOGLE APPS SCRIPT
+   ========================================= */
 
-function llamarPuente(accion, params = {}) {
+function llamarPuente(
+  accion,
+  parametros = {}
+) {
 
-  return new Promise((resolve, reject) => {
+  return new Promise(
+    (resolve, reject) => {
 
-    if (
-      !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/
-        .test(URL_PUENTE)
-    ) {
-
-      reject(
-        Error(
-          "Falta poner la URL del Apps Script en el HTML."
-        )
-      );
-
-      return;
-    }
-
-    if (TOKEN_PUENTE.length < 32) {
-
-      reject(
-        Error(
-          "Falta configurar TOKEN_PUENTE."
-        )
-      );
-
-      return;
-    }
-
-    const cb =
-      "bluefy_cb_" +
-      Math.random().toString(36).slice(2);
-
-    let script =
-      document.createElement("script");
-
-    let done = false;
-
-    const limpiar = () => {
-
-      clearTimeout(timer);
-      delete window[cb];
-      script.remove();
-
-    };
-
-    const timer = setTimeout(() => {
-
-      if (!done) {
-
-        done = true;
-        limpiar();
-
-        reject(
-          Error("Tiempo de consulta agotado")
-        );
-
-      }
-
-    }, 18000);
-
-    window[cb] = respuesta => {
-
-      if (done) return;
-
-      done = true;
-      limpiar();
-
-      if (!respuesta?.ok) {
+      if (
+        !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/
+          .test(URL_PUENTE)
+      ) {
 
         reject(
           Error(
-            respuesta?.error ||
-            "Fallo del puente"
+            "URL de Apps Script incorrecta."
           )
         );
 
-      } else {
-
-        resolve(respuesta);
-
+        return;
       }
 
-    };
-
-    const qs = new URLSearchParams({
-      accion,
-      token: TOKEN_PUENTE,
-      callback: cb,
-      ...params
-    });
-
-    script.src =
-      URL_PUENTE + "?" + qs.toString();
-
-    script.onerror = () => {
-
-      if (!done) {
-
-        done = true;
-        limpiar();
+      if (TOKEN_PUENTE.length < 32) {
 
         reject(
           Error(
-            "No se pudo cargar la respuesta de Apps Script"
+            "Configura un token de al menos 32 caracteres."
           )
         );
 
+        return;
       }
 
-    };
+      const cb =
+        "bluefy_cb_" +
+        Math.random()
+          .toString(36)
+          .slice(2);
 
-    document.head.appendChild(script);
+      let script =
+        document.createElement("script");
 
-  });
+      let terminado = false;
+
+      const limpiar = () => {
+
+        clearTimeout(timer);
+
+        delete window[cb];
+
+        script.remove();
+
+      };
+
+      const timer = setTimeout(() => {
+
+        if (!terminado) {
+
+          terminado = true;
+          limpiar();
+
+          reject(
+            Error(
+              "Tiempo de consulta agotado."
+            )
+          );
+
+        }
+
+      }, 18000);
+
+      window[cb] = respuesta => {
+
+        if (terminado) return;
+
+        terminado = true;
+        limpiar();
+
+        if (!respuesta?.ok) {
+
+          reject(
+            Error(
+              respuesta?.error ||
+              "Error del puente."
+            )
+          );
+
+        } else {
+
+          resolve(respuesta);
+
+        }
+
+      };
+
+      const parametrosURL =
+        new URLSearchParams({
+
+          accion,
+
+          token: TOKEN_PUENTE,
+
+          callback: cb,
+
+          ...parametros
+
+        });
+
+      script.src =
+        URL_PUENTE +
+        "?" +
+        parametrosURL.toString();
+
+      script.onerror = () => {
+
+        if (!terminado) {
+
+          terminado = true;
+          limpiar();
+
+          reject(
+            Error(
+              "No se pudo consultar Apps Script."
+            )
+          );
+
+        }
+
+      };
+
+      document.head.appendChild(script);
+
+    }
+  );
+
 }
 
-// REVISAR TICKETS PENDIENTES
+/* =========================================
+   REVISIÓN DE TICKETS PENDIENTES
+   ========================================= */
 
 async function revisar() {
 
@@ -901,55 +965,54 @@ async function revisar() {
   ) return;
 
   consultando = true;
-
   botones();
 
   let procesados = 0;
 
   try {
 
-    // Máximo 10 trabajos por ciclo.
-    // No consulta Google Sheets.
+    // Máximo 10 tickets por revisión.
+    // No consulta Google Sheets ni Sat_Cola.
 
     while (
       conectado() &&
       procesados < 10
     ) {
 
-      const r =
+      const respuesta =
         await llamarPuente("tomar");
 
-      if (!r.trabajo) {
+      if (!respuesta.trabajo) {
 
         estado(
           procesados
-            ? "Se enviaron " +
+            ? "Tickets enviados: " +
               procesados +
-              " ticket(s). No quedan pendientes.\nSiguiente revisión en 60 segundos."
-            : "Conectada. No hay tickets pendientes.\nPróxima revisión en 60 segundos."
+              "\nSin pendientes."
+            : "Sin tickets pendientes.\nPróxima revisión en 60 segundos."
         );
 
         break;
+
       }
 
-      const job = r.trabajo;
+      const trabajo =
+        respuesta.trabajo;
 
-      ultimoId = job.id;
       busy = true;
-
       botones();
 
       try {
 
         const bytes =
-          crearTicket(job.datos);
+          crearTicket(trabajo.datos);
 
         estado(
-          "Imprimiendo " +
-          (job.datos.cliente || "ticket") +
-          "\n" +
-          bytes.length +
-          " bytes..."
+          "Imprimiendo ticket de:\n" +
+          (
+            trabajo.datos.cliente ||
+            "Cliente"
+          )
         );
 
         canceled = false;
@@ -958,28 +1021,26 @@ async function revisar() {
 
         await llamarPuente(
           "confirmar",
-          { id: job.id }
+          {
+            id: trabajo.id
+          }
         );
 
         procesados++;
 
         estado(
-          "Trabajo " +
-          job.id.slice(0, 8) +
-          " enviado y confirmado."
+          "Ticket enviado correctamente.\n" +
+          "ID: " + trabajo.id
         );
 
         await dormir(600);
 
-      } catch (err) {
-
-        ultimoError =
-          String(err.message || err);
+      } catch (error) {
 
         estado(
-          "ERROR: " +
-          ultimoError +
-          "\nNo se reimprime automáticamente. Detenido para evitar problemas de papel."
+          "ERROR DE IMPRESIÓN:\n" +
+          error.message +
+          "\n\nNo se reimprimirá automáticamente."
         );
 
         try {
@@ -987,8 +1048,8 @@ async function revisar() {
           await llamarPuente(
             "error",
             {
-              id: job.id,
-              mensaje: ultimoError
+              id: trabajo.id,
+              mensaje: String(error.message)
             }
           );
 
@@ -1002,21 +1063,14 @@ async function revisar() {
         botones();
 
       }
-    }
-
-    if (procesados === 10) {
-
-      estado(
-        "Se enviaron 10 tickets. Los demás se revisarán en el siguiente ciclo."
-      );
 
     }
 
-  } catch (err) {
+  } catch (error) {
 
     estado(
-      "No se pudo consultar la cola: " +
-      (err.message || err)
+      "Error al consultar la cola:\n" +
+      error.message
     );
 
   } finally {
@@ -1025,59 +1079,12 @@ async function revisar() {
     botones();
 
   }
+
 }
 
-// GUARDAR CONFIGURACIÓN
-
-$("guardarConfig").onclick = () => {
-
-  const url =
-    $("urlPuente").value.trim();
-
-  const token =
-    $("tokenPuente").value.trim();
-
-  if (
-    !/^https:\/\/script\.google\.com\/macros\/s\/[^/]+\/exec$/
-      .test(url)
-  ) {
-
-    estado(
-      "La URL debe terminar en /exec y ser de Apps Script."
-    );
-
-    return;
-  }
-
-  if (token.length < 32) {
-
-    estado(
-      "Usa un token privado de al menos 32 caracteres."
-    );
-
-    return;
-  }
-
-  URL_PUENTE = url;
-  TOKEN_PUENTE = token;
-
-  localStorage.setItem(
-    "bluefy_url",
-    url
-  );
-
-  localStorage.setItem(
-    "bluefy_token",
-    token
-  );
-
-  estado(
-    "Configuracion guardada localmente. Conecta la MP210."
-  );
-
-};
-
-// BOTÓN CONECTAR
+/* =========================================
+   BOTÓN CONECTAR
+   ========================================= */
 
 $("conectar").onclick = async () => {
 
@@ -1091,12 +1098,14 @@ $("conectar").onclick = async () => {
   try {
 
     await conectar();
+
     ok = true;
 
-  } catch (e) {
+  } catch (error) {
 
     estado(
-      "Error: " + e.message
+      "Error Bluetooth:\n" +
+      error.message
     );
 
   } finally {
@@ -1112,7 +1121,9 @@ $("conectar").onclick = async () => {
 
 };
 
-// BOTÓN TEST
+/* =========================================
+   BOTÓN TEST
+   ========================================= */
 
 $("test").onclick = async () => {
 
@@ -1134,14 +1145,14 @@ $("test").onclick = async () => {
     );
 
     estado(
-      "TEST enviado una vez"
+      "TEST enviado una sola vez."
     );
 
-  } catch (e) {
+  } catch (error) {
 
     estado(
-      "ERROR TEST: " +
-      e.message
+      "ERROR TEST:\n" +
+      error.message
     );
 
   } finally {
@@ -1153,18 +1164,28 @@ $("test").onclick = async () => {
 
 };
 
-// REVISIÓN MANUAL
+/* =========================================
+   REVISAR MANUALMENTE
+   ========================================= */
 
-$("buscar").onclick = () => revisar();
+$("buscar").onclick = () => {
 
-// DESCONECTAR
+  revisar();
+
+};
+
+/* =========================================
+   DESCONECTAR
+   ========================================= */
 
 $("detener").onclick = () => {
 
   canceled = true;
 
   if (
-    dispositivo?.gatt?.connected
+    dispositivo &&
+    dispositivo.gatt &&
+    dispositivo.gatt.connected
   ) {
 
     dispositivo.gatt.disconnect();
@@ -1174,41 +1195,42 @@ $("detener").onclick = () => {
   tx = null;
 
   estado(
-    "Desconectada. Apaga la impresora si sigue saliendo papel."
+    "Impresora desconectada.\n" +
+    "Si sigue imprimiendo, apágala."
   );
 
   botones();
 
 };
 
-// REVISIÓN AUTOMÁTICA CADA 60 SEGUNDOS
+/* =========================================
+   REVISIÓN AUTOMÁTICA
+   ========================================= */
 
 setInterval(() => {
 
-  if (conectado()) {
+  if (
+    conectado() &&
+    !busy &&
+    !consultando
+  ) {
+
     revisar();
+
   }
 
 }, INTERVALO_MS);
 
-// RECUPERAR CONFIGURACIÓN GUARDADA
-
-$("urlPuente").value = URL_PUENTE;
-
-$("tokenPuente").value = TOKEN_PUENTE;
-
-if (
-  URL_PUENTE &&
-  TOKEN_PUENTE
-) {
-
-  estado(
-    "Puente configurado. Conecta la MP210."
-  );
-
-}
+/* =========================================
+   INICIO
+   ========================================= */
 
 botones();
+
+estado(
+  "Sistema listo.\n" +
+  "Conecta la impresora MP210."
+);
 
 </script>
 
