@@ -28,7 +28,10 @@ input{font:inherit;width:6em;padding:6px}
 <p>Imprime una guía de ancho del 1 al 10 directamente por Bluetooth, sin Print Fast. Ábrela en Bluefy.</p>
 
 <canvas id="vista" class="preview" width="384" height="10"></canvas>
-<button id="corta" type="button">Prueba corta (menos de 1 cm)</button>
+<p id="conexion">Impresora: desconectada</p>
+<button id="conectar" type="button">Conectar impresora (no imprime nada)</button>
+<button id="test" class="sec" type="button">Enviar solo la palabra TEST</button>
+<button id="corta" class="sec" type="button">Prueba corta (menos de 1 cm)</button>
 <button id="imprimir" class="sec" type="button">Prueba completa (unos 4 cm)</button>
 <button id="detener" class="sec" type="button" disabled>Detener envío</button>
 <button id="desconectar" class="sec" type="button" disabled>Desconectar</button>
@@ -40,7 +43,7 @@ input{font:inherit;width:6em;padding:6px}
 <select id="modo"><option value="conf" selected>Con confirmación (más seguro)</option><option value="sin">Sin confirmación (más rápido)</option></select></label>
 <label>Bytes por bloque <input id="tam" type="number" value="100" min="20" max="180"></label>
 <label>Pausa entre bloques (ms) <input id="pausa" type="number" value="30" min="0" max="200"></label>
-<p>Versión 3</p>
+<p>Versión 5</p>
 <label>Filas por franja <input id="franja" type="number" value="64" min="8" max="255"></label>
 </details>
 
@@ -151,6 +154,7 @@ async function conectar(){
     });
     dispositivo.addEventListener("gattserverdisconnected", () => {
       caract = null; $("desconectar").disabled = true;
+      $("conexion").textContent = "Impresora: desconectada";
       decir("La impresora se desconectó.");
     });
   }
@@ -158,6 +162,7 @@ async function conectar(){
   const servicio = await servidor.getPrimaryService(SERVICIO);
   caract = await servicio.getCharacteristic(CARACT);
   $("desconectar").disabled = false;
+  $("conexion").textContent = "Impresora: conectada";
 }
 
 let imprimiendo = false, detenido = false, clics = 0, escrituras = 0;
@@ -186,8 +191,8 @@ async function lanzar(dibujar){
   imprimiendo = true; detenido = false;
   $("imprimir").disabled = true; $("corta").disabled = true; $("detener").disabled = false;
   try{
-    decir("Conectando con la MP210…");
-    await conectar();
+    if (!dispositivo || !dispositivo.gatt.connected || !caract)
+      throw new Error("Primero pulsa Conectar impresora.");
     const r = aRaster(dibujar());
     const franja = Math.max(8, Math.min(255, +$("franja").value || 64));
     const comandos = armarComandos(r, franja);
@@ -203,6 +208,31 @@ async function lanzar(dibujar){
 }
 $("imprimir").addEventListener("click", () => lanzar(dibujarPrueba));
 $("corta").addEventListener("click", () => lanzar(dibujarCorta));
+
+$("conectar").addEventListener("click", async () => {
+  try{
+    decir("Conectando…");
+    await conectar();
+    decir("Conectado. No se envió ningún dato. Espera 15 segundos y observa si sale papel.");
+  } catch (e){
+    decir("No se pudo conectar: " + (e && e.message ? e.message : e), true);
+  }
+});
+
+$("test").addEventListener("click", async () => {
+  if (imprimiendo) return;
+  imprimiendo = true;
+  try{
+    if (!dispositivo || !dispositivo.gatt.connected || !caract)
+      throw new Error("Primero pulsa Conectar impresora.");
+    await caract.writeValueWithResponse(new Uint8Array([0x1B, 0x40, 0x54, 0x45, 0x53, 0x54, 0x0A, 0x0A, 0x0A]));
+    decir("Se envió TEST (9 bytes) una sola vez.");
+  } catch (e){
+    decir("No se pudo enviar: " + (e && e.message ? e.message : e), true);
+  } finally {
+    imprimiendo = false;
+  }
+});
 
 $("detener").addEventListener("click", () => {
   detenido = true;
