@@ -1,19 +1,18 @@
 
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
 <title>Fruti Verdura | Impresora MP210</title>
 
 <style>
 :root {
-  --verde: #246a50;
-  --fondo: #f7f8f6;
-  --texto: #202824;
-  --borde: #d7dfd9;
+  --bg: #f7f8f6;
+  --fg: #202824;
+  --green: #246a50;
+  --line: #d7dfd9;
 }
 
 * {
@@ -21,12 +20,12 @@
 }
 
 body {
-  font-family: -apple-system, system-ui, sans-serif;
-  background: var(--fondo);
-  color: var(--texto);
-  max-width: 540px;
-  margin: auto;
+  font: 16px/1.5 -apple-system, system-ui, sans-serif;
+  margin: 0 auto;
   padding: 24px 16px;
+  max-width: 540px;
+  background: var(--bg);
+  color: var(--fg);
 }
 
 h1 {
@@ -36,14 +35,13 @@ h1 {
 
 p {
   color: #57665e;
-  line-height: 1.5;
 }
 
 .card {
-  background: white;
-  border: 1px solid var(--borde);
-  border-radius: 14px;
   padding: 18px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
   margin: 14px 0;
 }
 
@@ -51,30 +49,30 @@ button {
   display: block;
   width: 100%;
   padding: 15px;
-  margin: 12px 0;
-  border: none;
-  border-radius: 10px;
-  background: var(--verde);
+  margin: 10px 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--green);
   color: white;
   font-size: 16px;
   font-weight: 600;
-}
-
-button.sec {
-  background: white;
-  color: var(--verde);
-  border: 1px solid var(--verde);
 }
 
 button:disabled {
   opacity: 0.4;
 }
 
+button.sec {
+  background: white;
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
 #estado {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 14px;
-  line-height: 1.6;
+  font: 14px/1.6 system-ui;
+  min-height: 4em;
 }
 
 </style>
@@ -116,21 +114,24 @@ Sistema de impresión Bluetooth MP210
 
 <div class="card">
 
-  <h3>Impresión automática</h3>
+  <h3>Impresión de tickets</h3>
 
   <p>
-    Los tickets de la aplicación de verduras
-    se recibirán mediante Google Apps Script.
+    Recibe los tickets seleccionados manualmente
+    desde la aplicación de verduras.
   </p>
 
   <p>
-    Revisión automática cada 60 segundos,
-    mientras Bluefy esté abierto y
-    la impresora conectada.
+    Revisión de pendientes cada 60 segundos
+    mientras la impresora esté conectada.
+  </p>
+
+  <p>
+    Sin consultas a Google Sheets ni al agente SAT.
   </p>
 
   <div id="estado">
-    Esperando conexión...
+    Sistema listo.
   </div>
 
 </div>
@@ -138,24 +139,30 @@ Sistema de impresión Bluetooth MP210
 <script>
 "use strict";
 
-/* =========================================
-   CONFIGURACIÓN DEL PUENTE
-   ========================================= */
+/* ==========================================
+   CONFIGURACIÓN
+   SOLO CAMBIA EL PIN DE ESTA SECCIÓN
+========================================== */
 
-// URL DE GOOGLE APPS SCRIPT
+// ENLACE DE GOOGLE APPS SCRIPT
 
 const URL_PUENTE =
   "https://script.google.com/macros/s/AKfycbztZg15XA0sV0EGMhz5CxzuWkBPCAgraXOBbjpG0G9fmkxSOwsXr2HKWLgub3_X3hK6OA/exec";
 
-// COLOCA AQUÍ TU TOKEN PRIVADO
-// Debe ser exactamente igual al de Apps Script.
+// ==========================================
+// PON AQUÍ TU PIN DE 4 NÚMEROS
+// ==========================================
 
-const TOKEN_PUENTE =
-  "1234";
+const TOKEN_PUENTE = "1234";
 
-/* =========================================
-   CONFIGURACIÓN BLUETOOTH MP210
-   ========================================= */
+// ==========================================
+// FIN DE CONFIGURACIÓN
+// ==========================================
+
+
+/* ==========================================
+   BLUETOOTH MP210
+========================================== */
 
 const SERVICIO =
   "49535343-fe7d-4ae5-8fa9-9fafd205e455";
@@ -177,38 +184,48 @@ let busy = false;
 let canceled = false;
 let consultando = false;
 
-/* =========================================
+let ultimoError = "";
+let ultimoId = "";
+
+
+/* ==========================================
    ESTADO
-   ========================================= */
+========================================== */
 
 function estado(texto) {
   $("estado").textContent = texto;
 }
 
 function conectado() {
+
   return !!(
     dispositivo &&
     dispositivo.gatt &&
     dispositivo.gatt.connected &&
     tx
   );
+
 }
 
 function botones() {
 
   const c = conectado();
 
-  $("conectar").disabled = c || busy;
+  $("conectar").disabled =
+    c || busy;
 
-  $("test").disabled = !c || busy;
+  $("test").disabled =
+    !c || busy;
 
   $("buscar").disabled =
     !c || busy || consultando;
 
-  $("detener").disabled = !c;
+  $("detener").disabled =
+    !c;
 
   $("conexion").textContent =
     c ? "Conectada" : "Desconectada";
+
 }
 
 const dormir = ms =>
@@ -216,16 +233,17 @@ const dormir = ms =>
     setTimeout(resolve, ms)
   );
 
-/* =========================================
-   CONEXIÓN BLUETOOTH
-   ========================================= */
+
+/* ==========================================
+   CONECTAR IMPRESORA
+========================================== */
 
 async function conectar() {
 
   if (!navigator.bluetooth) {
 
     throw Error(
-      "Abre esta página HTTPS desde Bluefy."
+      "Este navegador no admite Web Bluetooth. Usa Chrome en Mac o Bluefy en iPhone."
     );
 
   }
@@ -280,20 +298,21 @@ async function conectar() {
   botones();
 
   estado(
-    "Impresora conectada correctamente."
+    "Bluetooth conectado correctamente."
   );
 
 }
 
-/* =========================================
+
+/* ==========================================
    ENVÍO BLUETOOTH
-   ========================================= */
+========================================== */
 
 async function enviar(bytes) {
 
-  // Mismo envío que funcionó:
-  // Bloques de 20 bytes
-  // Pausa de 100 milisegundos
+  // Método que funcionó en las pruebas:
+  // 20 bytes por bloque.
+  // 100 ms de pausa.
 
   for (
     let i = 0;
@@ -304,7 +323,7 @@ async function enviar(bytes) {
     if (canceled) {
 
       throw Error(
-        "Envío cancelado."
+        "Envío cancelado. El ticket puede estar incompleto."
       );
 
     }
@@ -340,9 +359,10 @@ async function enviar(bytes) {
 
 }
 
-/* =========================================
-   FORMATO DE TEXTO
-   ========================================= */
+
+/* ==========================================
+   FORMATO DEL TEXTO
+========================================== */
 
 function normal(texto) {
 
@@ -363,12 +383,30 @@ function normal(texto) {
 
 }
 
+function centro(texto, ancho = COLS) {
+
+  texto = normal(texto);
+
+  return texto.length >= ancho
+    ? texto
+    : texto
+        .padStart(
+          Math.floor(
+            (ancho + texto.length) / 2
+          )
+        )
+        .padEnd(ancho);
+
+}
+
 function pair(a, b, ancho = COLS) {
 
   a = normal(a);
   b = normal(b);
 
-  if (a.length + b.length + 1 > ancho) {
+  if (
+    a.length + b.length + 1 > ancho
+  ) {
 
     return a + "\n" +
       b.padStart(ancho);
@@ -408,7 +446,9 @@ function wrap(texto, ancho = COLS) {
         palabra.slice(0, ancho)
       );
 
-      palabra = palabra.slice(ancho);
+      palabra =
+        palabra.slice(ancho);
+
     }
 
     if (!palabra) continue;
@@ -420,7 +460,9 @@ function wrap(texto, ancho = COLS) {
 
     if (siguiente.length > ancho) {
 
-      if (linea) resultado.push(linea);
+      if (linea) {
+        resultado.push(linea);
+      }
 
       linea = palabra;
 
@@ -432,7 +474,9 @@ function wrap(texto, ancho = COLS) {
 
   }
 
-  if (linea) resultado.push(linea);
+  if (linea) {
+    resultado.push(linea);
+  }
 
   return resultado.length
     ? resultado
@@ -440,9 +484,10 @@ function wrap(texto, ancho = COLS) {
 
 }
 
-/* =========================================
-   TICKET NATIVO ESC/POS
-   ========================================= */
+
+/* ==========================================
+   GENERAR TICKET ESC/POS
+========================================== */
 
 function crearTicket(d) {
 
@@ -451,69 +496,71 @@ function crearTicket(d) {
   const cmd = (...valores) =>
     bytes.push(...valores);
 
-  const texto = s =>
+  const text = s =>
     bytes.push(
       ...[...normal(s)].map(
         c => c.charCodeAt(0)
       )
     );
 
-  const salto = () =>
+  const nl = () =>
     cmd(10);
 
-  const linea = s => {
-    texto(s);
-    salto();
+  const ln = s => {
+    text(s);
+    nl();
   };
 
-  const separador = (n = 1) => {
+  const regla = (n = 1) => {
 
     for (let i = 0; i < n; i++) {
-      linea("=".repeat(COLS));
+
+      ln("=".repeat(COLS));
+
     }
 
   };
 
-  const alinear = n =>
+  const align = n =>
     cmd(27, 97, n);
 
-  const negrita = activo =>
-    cmd(27, 69, activo ? 1 : 0);
+  const bold = on =>
+    cmd(27, 69, on ? 1 : 0);
 
-  const tamano = n =>
+  const size = n =>
     cmd(29, 33, n);
 
-  const escribir = (
+  const lines = (
     valor,
     ancho = COLS
   ) => {
 
-    wrap(valor, ancho).forEach(linea);
+    wrap(valor, ancho).forEach(ln);
 
   };
 
-  // INICIAR IMPRESORA
+  // Inicializar impresora
 
   cmd(27, 64);
 
   // ENCABEZADO
 
-  alinear(1);
-  negrita(true);
-  tamano(17);
+  align(1);
+  bold(true);
+  size(17);
 
-  linea("FRUTI VERDURA");
-  linea("A DOMICILIO");
+  ln("FRUTI VERDURA");
+  ln("A DOMICILIO");
 
-  tamano(0);
-  negrita(false);
+  size(0);
+  bold(false);
 
   if (d.fecha) {
-    escribir(d.fecha);
+    lines(d.fecha);
   }
 
   if (d.domicilio_emisor) {
-    escribir(d.domicilio_emisor);
+    lines(d.domicilio_emisor);
   }
 
   const ciudad = [
@@ -527,86 +574,91 @@ function crearTicket(d) {
   ].filter(Boolean).join(" ");
 
   if (ciudad) {
-    escribir(ciudad);
+    lines(ciudad);
   }
 
-  salto();
+  nl();
 
-  alinear(0);
-  separador();
+  align(0);
+  regla();
 
   // DATOS DEL CLIENTE
 
   if (d.tipo === "remision") {
 
-    negrita(true);
-    linea("DATOS DEL CLIENTE");
-    negrita(false);
+    bold(true);
+    ln("DATOS DEL CLIENTE");
+    bold(false);
 
-    escribir(d.cliente);
+    lines(d.cliente);
 
     if (d.domicilio_entrega) {
 
-      linea("DOMICILIO DE ENTREGA");
-      escribir(d.domicilio_entrega);
+      ln("DOMICILIO DE ENTREGA");
+      lines(d.domicilio_entrega);
 
     }
 
-    negrita(true);
-    linea("DETALLE");
-    negrita(false);
+    bold(true);
+    ln("DETALLE");
+    bold(false);
 
     if (d.folio_remision) {
-      escribir(
+      lines(
         "Folio: " + d.folio_remision
       );
     }
 
     if (d.fecha_emision) {
-      escribir(
+      lines(
         "Expedicion: " + d.fecha_emision
       );
     }
 
     if (d.contacto) {
-      escribir(
+      lines(
         "Contacto: " + d.contacto
       );
     }
 
     if (d.telefono) {
-      escribir(
+      lines(
         "Telefono: " + d.telefono
       );
     }
 
   } else {
 
-    negrita(true);
-    linea("PEDIDO");
-    negrita(false);
+    bold(true);
+    ln("PEDIDO");
+    bold(false);
 
-    escribir(
-      String(d.cliente || "").toUpperCase()
+    lines(
+      String(
+        d.cliente || ""
+      ).toUpperCase()
     );
 
-    negrita(true);
-    linea("CONTACTO");
-    negrita(false);
+    bold(true);
+    ln("CONTACTO");
+    bold(false);
 
-    escribir(
-      [d.contacto, d.telefono]
+    lines(
+      [
+        d.contacto,
+        d.telefono
+      ]
         .filter(Boolean)
         .join(" - ")
     );
 
     if (d.domicilio_entrega) {
 
-      negrita(true);
-      linea("DOMICILIO DE ENTREGA");
-      negrita(false);
+      bold(true);
+      ln("DOMICILIO DE ENTREGA");
+      bold(false);
 
-      escribir(d.domicilio_entrega);
+      lines(d.domicilio_entrega);
 
     }
 
@@ -614,19 +666,24 @@ function crearTicket(d) {
 
   // PRODUCTOS
 
-  separador();
+  regla();
 
-  negrita(true);
+  bold(true);
 
-  linea(
-    pair("PRODUCTO", "VENTA")
+  ln(
+    pair(
+      "PRODUCTO",
+      "VENTA"
+    )
   );
 
-  negrita(false);
+  bold(false);
 
-  separador();
+  regla();
 
-  for (const p of (d.productos || [])) {
+  for (
+    const p of (d.productos || [])
+  ) {
 
     const precio =
       normal(p.venta || "");
@@ -640,19 +697,21 @@ function crearTicket(d) {
         COLS - precio.length - 1
       );
 
-    const nombres =
+    const nombreLineas =
       wrap(nombre, disponible);
 
-    linea(
+    ln(
       pair(
-        nombres[0],
+        nombreLineas[0],
         precio
       )
     );
 
-    nombres.slice(1).forEach(linea);
+    nombreLineas
+      .slice(1)
+      .forEach(ln);
 
-    linea(
+    ln(
       normal(p.cantidad)
     );
 
@@ -661,29 +720,29 @@ function crearTicket(d) {
       p.precio_unitario
     ) {
 
-      escribir(
+      lines(
         "Precio unitario: " +
         p.precio_unitario
       );
 
     }
 
-    linea("-".repeat(COLS));
+    ln("-".repeat(COLS));
 
   }
 
   // TOTALES
 
-  separador();
+  regla();
 
-  linea(
+  ln(
     pair(
       "Productos",
       d.total_productos
     )
   );
 
-  linea(
+  ln(
     pair(
       "Subtotal",
       d.subtotal
@@ -692,15 +751,18 @@ function crearTicket(d) {
 
   if (d.envio) {
 
-    linea(
-      pair("Envio", d.envio)
+    ln(
+      pair(
+        "Envio",
+        d.envio
+      )
     );
 
   }
 
   if (d.descuento) {
 
-    linea(
+    ln(
       pair(
         "Descuento",
         d.descuento
@@ -709,111 +771,128 @@ function crearTicket(d) {
 
   }
 
-  separador();
+  regla();
 
-  negrita(true);
+  bold(true);
+  size(0);
 
-  linea(
+  ln(
     pair(
       "TOTAL",
       d.total
     )
   );
 
-  negrita(false);
+  bold(false);
 
-  separador();
+  regla();
 
-  // REMISIÓN CON FACTURA
+  // DATOS DE REMISIÓN
 
   if (d.tipo === "remision") {
 
-    negrita(true);
-    linea("PAGO");
-    negrita(false);
+    bold(true);
+    ln("PAGO");
+    bold(false);
 
     if (d.estado_pago) {
 
-      escribir(
-        "Estado: " + d.estado_pago
+      lines(
+        "Estado: " +
+        d.estado_pago
       );
 
     }
 
     if (d.medio_pago) {
 
-      escribir(
-        "Medio: " + d.medio_pago
+      lines(
+        "Medio: " +
+        d.medio_pago
       );
 
     }
 
     if (d.cfdi_referencia) {
 
-      escribir(
-        "CFDI: " + d.cfdi_referencia
+      lines(
+        "CFDI: " +
+        d.cfdi_referencia
       );
 
     }
 
-    separador();
+    regla();
 
-    negrita(true);
-    linea("RECEPCION DE MERCANCIA");
-    negrita(false);
+    bold(true);
+    ln("RECEPCION DE MERCANCIA");
+    bold(false);
 
     if (d.observaciones_remision) {
 
-      escribir(
+      lines(
         "Observaciones: " +
         d.observaciones_remision
       );
 
     }
 
-    linea("Recibio: ____________________");
-    linea("Firma: _____________________");
-    linea("Fecha y hora: _____________");
+    ln(
+      "Recibio: ____________________"
+    );
 
-    separador();
+    ln(
+      "Firma: _____________________"
+    );
 
-    alinear(1);
+    ln(
+      "Fecha y hora: _____________"
+    );
 
-    escribir(
+    regla();
+
+    align(1);
+
+    lines(
       "Este documento no es un CFDI."
     );
 
-    escribir(
+    lines(
       "La recepcion no acredita el pago."
     );
 
   } else {
 
-    alinear(1);
+    align(1);
 
-    negrita(true);
-    linea("GRACIAS POR TU COMPRA");
-    negrita(false);
+    bold(true);
 
-    escribir(
+    ln(
+      "GRACIAS POR TU COMPRA"
+    );
+
+    bold(false);
+
+    lines(
       "Solo informativo. No es comprobante fiscal."
     );
 
   }
 
-  tamano(0);
-  alinear(0);
+  size(0);
+  align(0);
 
-  salto();
-  salto();
+  nl();
+  nl();
 
   return new Uint8Array(bytes);
 
 }
 
-/* =========================================
+
+/* ==========================================
    CONEXIÓN CON GOOGLE APPS SCRIPT
-   ========================================= */
+========================================== */
 
 function llamarPuente(
   accion,
@@ -830,22 +909,26 @@ function llamarPuente(
 
         reject(
           Error(
-            "URL de Apps Script incorrecta."
+            "La URL de Apps Script no es válida."
           )
         );
 
         return;
+
       }
 
-      if (TOKEN_PUENTE.length < 32) {
+      // Token de exactamente 4 números
+
+      if (!/^\d{4}$/.test(TOKEN_PUENTE)) {
 
         reject(
           Error(
-            "Configura un token de al menos 32 caracteres."
+            "Configura el PIN de 4 números en el código."
           )
         );
 
         return;
+
       }
 
       const cb =
@@ -854,7 +937,7 @@ function llamarPuente(
           .toString(36)
           .slice(2);
 
-      let script =
+      const script =
         document.createElement("script");
 
       let terminado = false;
@@ -862,9 +945,7 @@ function llamarPuente(
       const limpiar = () => {
 
         clearTimeout(timer);
-
         delete window[cb];
-
         script.remove();
 
       };
@@ -910,15 +991,12 @@ function llamarPuente(
 
       };
 
-      const parametrosURL =
+      const qs =
         new URLSearchParams({
 
           accion,
-
           token: TOKEN_PUENTE,
-
           callback: cb,
-
           ...parametros
 
         });
@@ -926,7 +1004,7 @@ function llamarPuente(
       script.src =
         URL_PUENTE +
         "?" +
-        parametrosURL.toString();
+        qs.toString();
 
       script.onerror = () => {
 
@@ -952,9 +1030,10 @@ function llamarPuente(
 
 }
 
-/* =========================================
-   REVISIÓN DE TICKETS PENDIENTES
-   ========================================= */
+
+/* ==========================================
+   REVISAR TICKETS PENDIENTES
+========================================== */
 
 async function revisar() {
 
@@ -965,6 +1044,7 @@ async function revisar() {
   ) return;
 
   consultando = true;
+
   botones();
 
   let procesados = 0;
@@ -972,7 +1052,7 @@ async function revisar() {
   try {
 
     // Máximo 10 tickets por revisión.
-    // No consulta Google Sheets ni Sat_Cola.
+    // No consulta Google Sheets.
 
     while (
       conectado() &&
@@ -988,8 +1068,8 @@ async function revisar() {
           procesados
             ? "Tickets enviados: " +
               procesados +
-              "\nSin pendientes."
-            : "Sin tickets pendientes.\nPróxima revisión en 60 segundos."
+              "\nNo quedan pendientes."
+            : "No hay tickets pendientes.\nPróxima revisión en 60 segundos."
         );
 
         break;
@@ -999,7 +1079,10 @@ async function revisar() {
       const trabajo =
         respuesta.trabajo;
 
+      ultimoId = trabajo.id;
+
       busy = true;
+
       botones();
 
       try {
@@ -1008,11 +1091,13 @@ async function revisar() {
           crearTicket(trabajo.datos);
 
         estado(
-          "Imprimiendo ticket de:\n" +
+          "Imprimiendo ticket:\n" +
           (
             trabajo.datos.cliente ||
             "Cliente"
-          )
+          ) +
+          "\nBytes: " +
+          bytes.length
         );
 
         canceled = false;
@@ -1029,18 +1114,23 @@ async function revisar() {
         procesados++;
 
         estado(
-          "Ticket enviado correctamente.\n" +
-          "ID: " + trabajo.id
+          "Ticket enviado.\nID: " +
+          trabajo.id
         );
 
         await dormir(600);
 
       } catch (error) {
 
+        ultimoError =
+          String(
+            error.message || error
+          );
+
         estado(
-          "ERROR DE IMPRESIÓN:\n" +
-          error.message +
-          "\n\nNo se reimprimirá automáticamente."
+          "ERROR:\n" +
+          ultimoError +
+          "\nNo se reimprimirá automáticamente."
         );
 
         try {
@@ -1049,7 +1139,7 @@ async function revisar() {
             "error",
             {
               id: trabajo.id,
-              mensaje: String(error.message)
+              mensaje: ultimoError
             }
           );
 
@@ -1060,37 +1150,49 @@ async function revisar() {
       } finally {
 
         busy = false;
+
         botones();
 
       }
 
     }
 
+    if (procesados === 10) {
+
+      estado(
+        "Se enviaron 10 tickets. Los demás se revisarán en el siguiente ciclo."
+      );
+
+    }
+
   } catch (error) {
 
     estado(
-      "Error al consultar la cola:\n" +
+      "No se pudo consultar la cola:\n" +
       error.message
     );
 
   } finally {
 
     consultando = false;
+
     botones();
 
   }
 
 }
 
-/* =========================================
+
+/* ==========================================
    BOTÓN CONECTAR
-   ========================================= */
+========================================== */
 
 $("conectar").onclick = async () => {
 
   if (busy) return;
 
   busy = true;
+
   botones();
 
   let ok = false;
@@ -1111,6 +1213,7 @@ $("conectar").onclick = async () => {
   } finally {
 
     busy = false;
+
     botones();
 
   }
@@ -1121,9 +1224,10 @@ $("conectar").onclick = async () => {
 
 };
 
-/* =========================================
+
+/* ==========================================
    BOTÓN TEST
-   ========================================= */
+========================================== */
 
 $("test").onclick = async () => {
 
@@ -1158,15 +1262,17 @@ $("test").onclick = async () => {
   } finally {
 
     busy = false;
+
     botones();
 
   }
 
 };
 
-/* =========================================
-   REVISAR MANUALMENTE
-   ========================================= */
+
+/* ==========================================
+   REVISAR PENDIENTES MANUALMENTE
+========================================== */
 
 $("buscar").onclick = () => {
 
@@ -1174,18 +1280,17 @@ $("buscar").onclick = () => {
 
 };
 
-/* =========================================
-   DESCONECTAR
-   ========================================= */
+
+/* ==========================================
+   DETENER Y DESCONECTAR
+========================================== */
 
 $("detener").onclick = () => {
 
   canceled = true;
 
   if (
-    dispositivo &&
-    dispositivo.gatt &&
-    dispositivo.gatt.connected
+    dispositivo?.gatt?.connected
   ) {
 
     dispositivo.gatt.disconnect();
@@ -1196,16 +1301,18 @@ $("detener").onclick = () => {
 
   estado(
     "Impresora desconectada.\n" +
-    "Si sigue imprimiendo, apágala."
+    "Si continúa imprimiendo, apágala."
   );
 
   botones();
 
 };
 
-/* =========================================
-   REVISIÓN AUTOMÁTICA
-   ========================================= */
+
+/* ==========================================
+   REVISIÓN DE TICKETS ENVIADOS
+   MANUALMENTE DESDE STREAMLIT
+========================================== */
 
 setInterval(() => {
 
@@ -1221,18 +1328,29 @@ setInterval(() => {
 
 }, INTERVALO_MS);
 
-/* =========================================
+
+/* ==========================================
    INICIO
-   ========================================= */
+========================================== */
 
 botones();
 
-estado(
-  "Sistema listo.\n" +
-  "Conecta la impresora MP210."
-);
+if (/^\d{4}$/.test(TOKEN_PUENTE)) {
+
+  estado(
+    "Sistema listo.\n" +
+    "Conecta la impresora MP210."
+  );
+
+} else {
+
+  estado(
+    "Configura tu PIN de 4 números " +
+    "en el código y vuelve a cargar la página."
+  );
+
+}
 
 </script>
-
 </body>
 </html>
